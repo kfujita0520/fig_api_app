@@ -30,13 +30,16 @@ function shortenAddress(address, chars = 4) {
   return `${address.slice(0, chars)}...${address.slice(-chars)}`;
 }
 
-function StakePanel({ walletConnected, onConnectWallet }) {
+function StakePanel({ walletConnected, onConnectWallet, balanceSol }) {
   const validatorCell = (
     <div className="validator-cell">
       <span className="validator-icon">F</span>
       <span className="detail-value">Figment</span>
     </div>
   );
+
+  const balanceDisplay =
+    balanceSol != null ? `${balanceSol.toFixed(2)} SOL` : '— SOL';
 
   if (!walletConnected) {
     return (
@@ -70,7 +73,7 @@ function StakePanel({ walletConnected, onConnectWallet }) {
           <div className="stake-amount">0 SOL</div>
           <div className="stake-fiat">↑↓ $0</div>
         </div>
-        <button type="button" className="stake-btn">↑ 4.6 SOL</button>
+        <button type="button" className="stake-btn">↑ {balanceDisplay}</button>
       </div>
       <div className="details">
         <DetailRow label="Gross Rewards Rate" value="6.3%" />
@@ -307,6 +310,7 @@ export default function App() {
             <StakePanel
               walletConnected={walletConnected}
               onConnectWallet={handleConnectWallet}
+              balanceSol={balance}
             />
           </div>
           <div
