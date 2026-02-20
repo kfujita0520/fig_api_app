@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useWallet, useConnection } from '@solana/wallet-adapter-react';
+import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 
 const TABS = ['stake', 'rewards', 'activity'];
 
@@ -21,6 +23,11 @@ function DetailRow({ label, value, children }) {
       {children ?? <span className="detail-value">{value}</span>}
     </div>
   );
+}
+
+function shortenAddress(address, chars = 4) {
+  if (!address) return '';
+  return `${address.slice(0, chars)}...${address.slice(-chars)}`;
 }
 
 function StakePanel({ walletConnected, onConnectWallet }) {
@@ -143,7 +150,9 @@ function ActivityPanel() {
   );
 }
 
-function WalletModal({ isOpen, onClose, onDisconnect }) {
+const EXPLORER_URL = 'https://explorer.solana.com';
+
+function WalletModal({ isOpen, onClose, publicKey, balanceSol, onDisconnect }) {
   if (!isOpen) return null;
 
   const handleBackdropClick = (e) => {
@@ -154,6 +163,12 @@ function WalletModal({ isOpen, onClose, onDisconnect }) {
     onClose();
     onDisconnect();
   };
+
+  const addressStr = publicKey ? publicKey.toBase58() : '';
+  const shortAddress = shortenAddress(addressStr);
+  const explorerLink = addressStr
+    ? `${EXPLORER_URL}/address/${addressStr}${import.meta.env.VITE_SOLANA_CLUSTER === 'mainnet-beta' ? '' : '?cluster=' + (import.meta.env.VITE_SOLANA_CLUSTER || 'devnet')}`
+    : '#';
 
   return (
     <div
@@ -169,8 +184,15 @@ function WalletModal({ isOpen, onClose, onDisconnect }) {
       >
         <div className="modal-wallet-address">
           <span className="chain-icon" />
-          <span className="address-text">AyE8...FJb3</span>
-          <a href="#" className="modal-wallet-link" title="View on explorer" aria-label="View on explorer">
+          <span className="address-text">{shortAddress}</span>
+          <a
+            href={explorerLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="modal-wallet-link"
+            title="View on explorer"
+            aria-label="View on explorer"
+          >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
               <polyline points="15 3 21 3 21 9" />
@@ -179,8 +201,8 @@ function WalletModal({ isOpen, onClose, onDisconnect }) {
           </a>
         </div>
         <div className="modal-wallet-details details">
-          <DetailRow label="Network" value="Devnet" />
-          <DetailRow label="Available Balance" value="4.69 SOL" />
+          <DetailRow label="Network" value={import.meta.env.VITE_SOLANA_CLUSTER === 'mainnet-beta' ? 'Mainnet' : 'Devnet'} />
+          <DetailRow label="Available Balance" value={balanceSol != null ? `${balanceSol.toFixed(2)} SOL` : '—'} />
         </div>
         <button type="button" className="modal-disconnect" onClick={handleDisconnect}>
           Disconnect
@@ -192,8 +214,30 @@ function WalletModal({ isOpen, onClose, onDisconnect }) {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('stake');
-  const [walletConnected, setWalletConnected] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [balance, setBalance] = useState(null);
+
+  const { publicKey, connected, disconnect } = useWallet();
+  const { setVisible: setWalletModalVisible } = useWalletModal();
+  const { connection } = useConnection();
+
+  const walletConnected = !!connected;
+  const shortAddress = publicKey ? shortenAddress(publicKey.toBase58()) : '';
+
+  useEffect(() => {
+    if (!publicKey || !connection) return;
+    let cancelled = false;
+    connection.getBalance(publicKey).then((lamports) => {
+      if (!cancelled) setBalance(lamports / 1e9);
+    }).catch(() => {
+      if (!cancelled) setBalance(null);
+    });
+    return () => { cancelled = true; };
+  }, [publicKey, connection]);
+
+  const handleConnectWallet = () => {
+    setWalletModalVisible(true);
+  };
 
   const handleAddressClick = () => {
     if (walletConnected) setModalOpen(true);
@@ -204,6 +248,12 @@ export default function App() {
       e.preventDefault();
       setModalOpen(true);
     }
+  };
+
+  const handleModalDisconnect = () => {
+    disconnect();
+    setModalOpen(false);
+    setBalance(null);
   };
 
   return (
@@ -229,7 +279,7 @@ export default function App() {
             onKeyDown={handleAddressKeyDown}
           >
             <span className="address-icon" />
-            <span className="address-text">AyE8...FJb3</span>
+            <span className="address-text">{shortAddress || 'AyE8...FJb3'}</span>
           </div>
         </div>
 
@@ -256,7 +306,7 @@ export default function App() {
           >
             <StakePanel
               walletConnected={walletConnected}
-              onConnectWallet={() => setWalletConnected(true)}
+              onConnectWallet={handleConnectWallet}
             />
           </div>
           <div
@@ -279,7 +329,9 @@ export default function App() {
       <WalletModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        onDisconnect={() => setWalletConnected(false)}
+        publicKey={publicKey}
+        balanceSol={balance}
+        onDisconnect={handleModalDisconnect}
       />
     </>
   );
