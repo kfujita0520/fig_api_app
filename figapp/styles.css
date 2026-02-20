@@ -174,3 +174,114 @@ body {
 }
 .undelegate-btn:hover { background: #f9fafb; border-color: #9ca3af; }
 .undelegate-btn svg { width: 14px; height: 14px; }
+
+/* Address clickable (wallet) */
+.address { cursor: pointer; }
+.address:hover { color: #111; }
+.address.wallet-hidden { display: none !important; }
+
+/* Wallet modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+.modal-backdrop.is-open { display: flex; }
+.modal-wallet {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  width: 100%;
+  max-width: 320px;
+  padding: 20px;
+}
+.modal-wallet-address {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #111;
+  font-family: ui-monospace, monospace;
+}
+.modal-wallet-address .chain-icon { width: 24px; height: 24px; flex-shrink: 0; }
+.modal-wallet-link {
+  margin-left: auto;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+.modal-wallet-link:hover { color: #111; }
+.modal-wallet-link svg { width: 16px; height: 16px; }
+.modal-wallet-details { margin-bottom: 20px; }
+.modal-wallet-details .detail-row { padding: 8px 0; }
+.modal-wallet-details .detail-value { font-weight: 600; }
+.modal-disconnect {
+  display: block;
+  width: 100%;
+  padding: 12px 16px;
+  background: #111;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.modal-disconnect:hover { background: #333; }
+
+/* Stake panel: connect state */
+.stake-connect-wrap { display: none; }
+.stake-connect-wrap.is-visible { display: block; }
+.stake-connected-wrap { display: none; }
+.stake-connected-wrap.is-visible { display: block; }
+.stake-input-area {
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.stake-input-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.stake-input-row .stake-amount { margin: 0; }
+.stake-max-btn {
+  padding: 6px 10px;
+  background: #e5e7eb;
+  color: #374151;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.stake-max-btn:hover { background: #d1d5db; }
+.connect-wallet-btn {
+  display: block;
+  width: 100%;
+  padding: 12px 16px;
+  margin-top: 16px;
+  background: #111;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.connect-wallet-btn:hover { background: #333; }
