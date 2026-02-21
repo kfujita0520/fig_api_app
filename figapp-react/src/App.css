@@ -152,6 +152,8 @@ body {
 
 /* Rewards panel */
 .rewards-panel { max-height: 380px; overflow-y: auto; }
+.rewards-loading, .rewards-empty { padding: 12px; color: #64748b; font-size: 0.875rem; }
+.rewards-empty { font-style: italic; }
 .rewards-stake-section { margin-bottom: 16px; }
 .rewards-stake-total { font-size: 1.5rem; font-weight: 600; color: #111; }
 .rewards-stake-total span.unit { font-weight: 400; color: #9ca3af; margin-left: 2px; }

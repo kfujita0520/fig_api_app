@@ -2,6 +2,7 @@
  * Figment Solana Stake API client.
  * @see https://docs.figment.io/reference/solana-stake
  * @see https://docs.figment.io/reference/solana-broadcast
+ * @see https://docs.figment.io/reference/solana-stakes
  * In dev we use the Vite proxy to avoid CORS; in production we call the API directly.
  */
 
@@ -118,4 +119,35 @@ export async function broadcastSignedTransaction({ signedPayloadHex, network }) 
   }
 
   return { transactionHash: txHash };
+}
+
+/**
+ * Fetch list of stake accounts from Figment.
+ * @param {{ network: "mainnet"|"devnet"|"testnet", stakeAuthority?: string }} params
+ * @returns {Promise<Array<{ id: string, stake_account: string, status: string, active_balance: string|null, inactive_balance: string|null, balance: string|null }>>}
+ */
+export async function getStakes({ network, stakeAuthority }) {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('Figment API key is not configured. Set VITE_FIGMENT_API_KEY in .env');
+  }
+
+  const params = new URLSearchParams({ network });
+  if (stakeAuthority) params.set('stake_authority', stakeAuthority);
+  const url = `${FIGMENT_API_BASE}/solana/stakes?${params.toString()}`;
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { 'x-api-key': apiKey },
+  });
+
+  const body = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    const msg = body?.error?.message || body?.message || res.statusText || 'Failed to fetch stakes';
+    throw new Error(msg);
+  }
+
+  const data = body?.data ?? body;
+  return Array.isArray(data) ? data : [];
 }

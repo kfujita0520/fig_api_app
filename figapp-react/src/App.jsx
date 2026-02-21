@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { VersionedTransaction } from '@solana/web3.js';
-import { createStakeTransaction, broadcastSignedTransaction, clusterToNetwork } from './figmentStake';
+import { createStakeTransaction, broadcastSignedTransaction, clusterToNetwork, getStakes } from './figmentStake';
 
 const TABS = ['stake', 'rewards', 'activity'];
 
@@ -13,10 +13,20 @@ const ACTIVITY_ITEMS = [
   { date: 'FEB 9', type: 'stake', amount: '0.1 SOL', status: 'Active', note: null, statusDot: 'green' },
 ];
 
-const REWARD_CARDS = [
-  { address: 'Z4QK...aCR5', status: 'Active', statusDot: 'green', activeStake: '0.098 SOL', inactiveStake: '0 SOL', rewards: '0 SOL' },
-  { address: '8jrK...mohE', status: 'Exiting', statusDot: 'yellow', activeStake: '0.098 SOL', inactiveStake: '0 SOL', rewards: '0 SOL' },
-];
+function formatStakeBalance(value) {
+  if (value == null || value === '') return '0 SOL';
+  const n = parseFloat(value);
+  if (Number.isNaN(n)) return String(value) + ' SOL';
+  if (n >= 1e8) return (n / 1e9).toFixed(4) + ' SOL';
+  return n.toFixed(4) + ' SOL';
+}
+
+function statusToDot(status) {
+  const s = (status || '').toLowerCase();
+  if (s === 'active') return 'green';
+  if (s === 'activating' || s === 'exiting' || s === 'inactive') return 'yellow';
+  return 'green';
+}
 
 function DetailRow({ label, value, children }) {
   return (
@@ -227,13 +237,58 @@ function StakePanel({ walletConnected, onConnectWallet, balanceSol, onBalanceRef
 }
 
 function RewardsPanel() {
+  const { publicKey } = useWallet();
+  const cluster = import.meta.env.VITE_SOLANA_CLUSTER || 'devnet';
+  const network = clusterToNetwork(cluster);
+
+  const [stakes, setStakes] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    setError('');
+    const stakeAuthority = publicKey ? publicKey.toBase58() : undefined;
+    if (!stakeAuthority) {
+      setStakes([]);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    getStakes({ network, stakeAuthority })
+      .then((data) => {
+        if (!cancelled) setStakes(data);
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setError(e?.message || 'Failed to load stakes');
+          setStakes([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [network, publicKey]);
+
+  const totalActive = stakes.reduce((sum, s) => sum + (parseFloat(s.active_balance) || 0), 0);
+  const totalInactive = stakes.reduce((sum, s) => sum + (parseFloat(s.inactive_balance) || 0), 0);
+  const totalSol = stakes.reduce((sum, s) => {
+    const b = parseFloat(s.balance);
+    if (!Number.isNaN(b)) return sum + b;
+    return sum + (parseFloat(s.active_balance) || 0) + (parseFloat(s.inactive_balance) || 0);
+  }, 0);
+  const toSol = (v) => (v >= 1e8 ? (v / 1e9).toFixed(2) : v.toFixed(2));
+  const displayTotal = toSol(totalSol);
+  const displayActive = toSol(totalActive);
+  const displayActivating = toSol(totalInactive);
+
   return (
     <div className="rewards-panel">
       <div className="rewards-stake-section">
-        <div className="rewards-stake-total">0.3 <span className="unit">SOL</span></div>
+        <div className="rewards-stake-total">{displayTotal} <span className="unit">SOL</span></div>
         <div className="rewards-pills">
-          <span className="rewards-pill active">0.2 Active</span>
-          <span className="rewards-pill activating">0.11 Activating</span>
+          <span className="rewards-pill active">{displayActive} Active</span>
+          <span className="rewards-pill activating">{displayActivating} Activating</span>
         </div>
       </div>
       <div className="rewards-rewards-section">
@@ -241,22 +296,30 @@ function RewardsPanel() {
         <div className="rewards-rewards-label">Rewards</div>
         <div className="rewards-na">N/A</div>
       </div>
-      {REWARD_CARDS.map((card) => (
-        <div key={card.address} className="reward-card">
+      {error && <div className="stake-error">{error}</div>}
+      {loading && <div className="rewards-loading">Loading stakes…</div>}
+      {!loading && !error && stakes.length === 0 && !publicKey && (
+        <div className="rewards-empty">Connect your wallet to see stake positions.</div>
+      )}
+      {!loading && !error && stakes.length === 0 && publicKey && (
+        <div className="rewards-empty">No stake accounts. Stake SOL to see positions here.</div>
+      )}
+      {!loading && stakes.map((s) => (
+        <div key={s.id || s.stake_account} className="reward-card">
           <div className="reward-card-header">
             <div className="reward-card-address">
               <span className="chain-icon" />
-              {card.address}
+              {shortenAddress(s.stake_account || '')}
             </div>
             <div className="reward-card-status">
-              <span className={`status-dot ${card.statusDot}`} />
-              {card.status}
+              <span className={`status-dot ${statusToDot(s.status)}`} />
+              {s.status || '—'}
             </div>
           </div>
           <div className="reward-card-metrics details">
-            <DetailRow label="Active Stake" value={card.activeStake} />
-            <DetailRow label="Inactive Stake" value={card.inactiveStake} />
-            <DetailRow label="Rewards" value={card.rewards} />
+            <DetailRow label="Active Stake" value={formatStakeBalance(s.active_balance)} />
+            <DetailRow label="Inactive Stake" value={formatStakeBalance(s.inactive_balance)} />
+            <DetailRow label="Rewards" value="N/A" />
           </div>
           <button type="button" className="undelegate-btn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
