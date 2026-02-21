@@ -66,32 +66,39 @@ body {
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
 
-/* Stake panel */
+/* Stake panel – balance box (card) */
+.stake-balance-box {
+  background: #f9fafb; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;
+  border: 1px solid #f3f4f6; overflow: visible;
+}
 .stake-row {
-  display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
-  gap: 16px; flex-wrap: nowrap;
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
 }
-.stake-row > div:first-child { flex-shrink: 0; }
-.stake-amount-input-wrap {
-  display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;
-  min-width: 0; flex-shrink: 1;
+.stake-balance-left { flex-shrink: 0; min-width: 0; flex: 1; }
+.stake-amount-editable {
+  display: flex; align-items: baseline; gap: 4px; flex-wrap: nowrap;
 }
-.stake-amount { font-size: 1.5rem; font-weight: 600; color: #9ca3af; }
-.stake-fiat { font-size: 0.75rem; color: #9ca3af; margin-top: 2px; }
+.stake-amount-input-inline {
+  flex: 1; min-width: 60px; max-width: 180px;
+  font-size: 1.5rem; font-weight: 600; color: #6b7280; font-family: inherit;
+  border: none; background: transparent; padding: 0;
+  -moz-appearance: textfield;
+}
+.stake-amount-input-inline::placeholder { color: #9ca3af; }
+.stake-amount-input-inline::-webkit-outer-spin-button,
+.stake-amount-input-inline::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.stake-amount-input-inline:focus { outline: none; }
+.stake-amount-unit { font-size: 1.5rem; font-weight: 600; color: #6b7280; flex-shrink: 0; }
+.stake-fiat { font-size: 0.75rem; color: #9ca3af; margin-top: 4px; }
 .stake-btn {
-  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
-  padding: 10px 14px; background: #111; color: #fff; border: none; border-radius: 8px;
-  font-size: 0.875rem; font-weight: 600; cursor: pointer; font-family: inherit;
+  display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
+  padding: 8px 12px; background: #111; color: #fff; border: none; border-radius: 6px;
+  font-size: 0.8125rem; font-weight: 600; cursor: pointer; font-family: inherit;
+  white-space: nowrap; min-width: fit-content;
 }
 .stake-btn:hover { background: #333; }
 .stake-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.stake-amount-input {
-  width: 100px; min-width: 72px; padding: 8px 10px;
-  border: 1px solid #e5e7eb; border-radius: 8px;
-  font-size: 0.875rem; font-family: inherit; flex-shrink: 0;
-}
-.stake-amount-input:focus { outline: none; border-color: #6366f1; }
-.stake-amount-suffix { font-size: 0.875rem; color: #6b7280; flex-shrink: 0; }
 .stake-submit-btn {
   display: block; width: 100%; margin-top: 12px; padding: 12px 14px;
   background: #111; color: #fff; border: none; border-radius: 8px;

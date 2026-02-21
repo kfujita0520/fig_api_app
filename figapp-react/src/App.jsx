@@ -166,23 +166,25 @@ function StakePanel({ walletConnected, onConnectWallet, balanceSol, onBalanceRef
 
   return (
     <div className="stake-connected-wrap is-visible">
-      <div className="stake-row">
-        <div>
-          <div className="stake-amount">0 SOL</div>
-          <div className="stake-fiat">↑↓ $0</div>
-        </div>
-        <div className="stake-amount-input-wrap">
-          <input
-            type="number"
-            className="stake-amount-input"
-            placeholder="0.00"
-            min={MIN_STAKE_SOL}
-            step="any"
-            value={stakeAmountSol}
-            onChange={(e) => setStakeAmountSol(e.target.value)}
-            disabled={isStaking}
-          />
-          <span className="stake-amount-suffix">SOL</span>
+      <div className="stake-balance-box">
+        <div className="stake-row">
+          <div className="stake-balance-left">
+            <div className="stake-amount-editable">
+              <input
+                type="number"
+                className="stake-amount-input-inline"
+                placeholder="0"
+                min={MIN_STAKE_SOL}
+                step="any"
+                value={stakeAmountSol}
+                onChange={(e) => setStakeAmountSol(e.target.value)}
+                disabled={isStaking}
+                aria-label="Amount to stake in SOL"
+              />
+              <span className="stake-amount-unit">SOL</span>
+            </div>
+            <div className="stake-fiat">↑↓ $0</div>
+          </div>
           <button
             type="button"
             className="stake-btn"
