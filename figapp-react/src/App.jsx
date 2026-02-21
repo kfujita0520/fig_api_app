@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import { VersionedTransaction } from '@solana/web3.js';
+import { createStakeTransaction, broadcastSignedTransaction, clusterToNetwork } from './figmentStake';
 
 const TABS = ['stake', 'rewards', 'activity'];
 
@@ -30,7 +32,31 @@ function shortenAddress(address, chars = 4) {
   return `${address.slice(0, chars)}...${address.slice(-chars)}`;
 }
 
-function StakePanel({ walletConnected, onConnectWallet, balanceSol }) {
+const MIN_STAKE_SOL = 0.0025;
+const STAKE_GAS_RESERVE_SOL = 0.01;
+const DEFAULT_VOTE_ACCOUNT_DEVNET = '21Jxcw74j5SvajRKE3PvNifu26CVorF7DF8HyanKNzZ3';
+
+function hexToBytes(hex) {
+  const h = hex.replace(/^0x/i, '');
+  const arr = new Uint8Array(h.length / 2);
+  for (let i = 0; i < h.length; i += 2) arr[i / 2] = parseInt(h.slice(i, i + 2), 16);
+  return arr;
+}
+
+function bytesToHex(bytes) {
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+function StakePanel({ walletConnected, onConnectWallet, balanceSol, onBalanceRefetch }) {
+  const { publicKey, signTransaction } = useWallet();
+
+  const [stakeAmountSol, setStakeAmountSol] = useState('');
+  const [isStaking, setIsStaking] = useState(false);
+  const [error, setError] = useState('');
+  const [successTxHash, setSuccessTxHash] = useState('');
+
   const validatorCell = (
     <div className="validator-cell">
       <span className="validator-icon">F</span>
@@ -38,8 +64,75 @@ function StakePanel({ walletConnected, onConnectWallet, balanceSol }) {
     </div>
   );
 
-  const balanceDisplay =
-    balanceSol != null ? `${balanceSol.toFixed(2)} SOL` : '— SOL';
+  const balanceDisplay = balanceSol != null ? `${balanceSol.toFixed(2)} SOL` : '— SOL';
+  const cluster = import.meta.env.VITE_SOLANA_CLUSTER || 'devnet';
+  const network = clusterToNetwork(cluster);
+  const voteAccount = import.meta.env.VITE_FIGMENT_VOTE_ACCOUNT || DEFAULT_VOTE_ACCOUNT_DEVNET;
+
+  const handleMax = () => {
+    if (balanceSol != null && balanceSol > 0) {
+      const max = Math.max(0, balanceSol - STAKE_GAS_RESERVE_SOL);
+      setStakeAmountSol(max.toFixed(4));
+    }
+  };
+
+  const handleStake = async () => {
+    setError('');
+    setSuccessTxHash('');
+    const amount = parseFloat(stakeAmountSol);
+    if (!publicKey) {
+      setError('Wallet not connected');
+      return;
+    }
+    if (Number.isNaN(amount) || amount < MIN_STAKE_SOL) {
+      setError(`Minimum stake is ${MIN_STAKE_SOL} SOL`);
+      return;
+    }
+    if (balanceSol != null && amount > balanceSol) {
+      setError('Insufficient balance');
+      return;
+    }
+
+    setIsStaking(true);
+    try {
+      const { unsignedTxHex } = await createStakeTransaction({
+        fundingAccount: publicKey.toBase58(),
+        voteAccount,
+        amountSol: amount,
+        network,
+      });
+
+      const txBytes = hexToBytes(unsignedTxHex);
+      const versionedTx = VersionedTransaction.deserialize(txBytes);
+
+      if (!signTransaction) {
+        throw new Error('Wallet does not support signing transactions');
+      }
+      const signedTx = await signTransaction(versionedTx);
+      const signedHex = bytesToHex(signedTx.serialize());
+
+      const { transactionHash } = await broadcastSignedTransaction({
+        signedPayloadHex: signedHex,
+        network,
+      });
+
+      setSuccessTxHash(transactionHash);
+      setStakeAmountSol('');
+      if (typeof onBalanceRefetch === 'function') onBalanceRefetch();
+    } catch (e) {
+      const message = e?.message || String(e);
+      setError(message);
+    } finally {
+      setIsStaking(false);
+    }
+  };
+
+  const amountNum = parseFloat(stakeAmountSol);
+  const amountValid =
+    !Number.isNaN(amountNum) &&
+    amountNum >= MIN_STAKE_SOL &&
+    (balanceSol == null || amountNum <= balanceSol);
+  const stakeBtnDisabled = isStaking || !amountValid;
 
   if (!walletConnected) {
     return (
@@ -66,6 +159,11 @@ function StakePanel({ walletConnected, onConnectWallet, balanceSol }) {
     );
   }
 
+  const clusterForExplorer = cluster === 'mainnet-beta' ? 'mainnet-beta' : cluster || 'devnet';
+  const explorerTxUrl = successTxHash
+    ? `https://explorer.solana.com/tx/${successTxHash}${clusterForExplorer === 'mainnet-beta' ? '' : '?cluster=' + clusterForExplorer}`
+    : '';
+
   return (
     <div className="stake-connected-wrap is-visible">
       <div className="stake-row">
@@ -73,7 +171,28 @@ function StakePanel({ walletConnected, onConnectWallet, balanceSol }) {
           <div className="stake-amount">0 SOL</div>
           <div className="stake-fiat">↑↓ $0</div>
         </div>
-        <button type="button" className="stake-btn">↑ {balanceDisplay}</button>
+        <div className="stake-amount-input-wrap">
+          <input
+            type="number"
+            className="stake-amount-input"
+            placeholder="0.00"
+            min={MIN_STAKE_SOL}
+            step="any"
+            value={stakeAmountSol}
+            onChange={(e) => setStakeAmountSol(e.target.value)}
+            disabled={isStaking}
+          />
+          <span className="stake-amount-suffix">SOL</span>
+          <button
+            type="button"
+            className="stake-btn"
+            onClick={handleMax}
+            disabled={isStaking || balanceSol == null || balanceSol <= 0}
+            title={`Set to balance minus ${STAKE_GAS_RESERVE_SOL} SOL gas reserve`}
+          >
+            ↑ {balanceDisplay}
+          </button>
+        </div>
       </div>
       <div className="details">
         <DetailRow label="Gross Rewards Rate" value="6.3%" />
@@ -81,6 +200,25 @@ function StakePanel({ walletConnected, onConnectWallet, balanceSol }) {
         <DetailRow label="Fee" value="7%" />
         <DetailRow label="Activation Time" value="~1 day" />
       </div>
+      {error && <div className="stake-error">{error}</div>}
+      {successTxHash && (
+        <div className="stake-success">
+          Staked successfully.{' '}
+          {explorerTxUrl ? (
+            <a href={explorerTxUrl} target="_blank" rel="noopener noreferrer">
+              View transaction
+            </a>
+          ) : null}
+        </div>
+      )}
+      <button
+        type="button"
+        className="stake-submit-btn"
+        onClick={handleStake}
+        disabled={stakeBtnDisabled}
+      >
+        {isStaking ? 'Staking…' : 'Stake'}
+      </button>
       <div className="minimum">0.0025 SOL minimum</div>
     </div>
   );
@@ -219,6 +357,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('stake');
   const [modalOpen, setModalOpen] = useState(false);
   const [balance, setBalance] = useState(null);
+  const [balanceRefetchKey, setBalanceRefetchKey] = useState(0);
 
   const { publicKey, connected, disconnect } = useWallet();
   const { setVisible: setWalletModalVisible } = useWalletModal();
@@ -236,7 +375,9 @@ export default function App() {
       if (!cancelled) setBalance(null);
     });
     return () => { cancelled = true; };
-  }, [publicKey, connection]);
+  }, [publicKey, connection, balanceRefetchKey]);
+
+  const handleBalanceRefetch = () => setBalanceRefetchKey((k) => k + 1);
 
   const handleConnectWallet = () => {
     setWalletModalVisible(true);
@@ -311,6 +452,7 @@ export default function App() {
               walletConnected={walletConnected}
               onConnectWallet={handleConnectWallet}
               balanceSol={balance}
+              onBalanceRefetch={handleBalanceRefetch}
             />
           </div>
           <div
