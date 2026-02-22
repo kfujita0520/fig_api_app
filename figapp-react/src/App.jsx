@@ -380,23 +380,25 @@ function RewardsPanel({ onBalanceRefetch }) {
             <DetailRow label="Inactive Stake" value={formatStakeBalance(s.inactive_balance)} />
             <DetailRow label="Rewards" value="N/A" />
           </div>
-          <button
-            type="button"
-            className="undelegate-btn"
-            disabled={undelegatingStakeAccount != null || (s.status || '').toLowerCase() !== 'active'}
-            onClick={() => handleUndelegate(s)}
-          >
-            {undelegatingStakeAccount === s.stake_account ? (
-              'Signing…'
-            ) : (
-              <>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M7 17l10-10M7 7v10h10" />
-                </svg>
-                Undelegate
-              </>
-            )}
-          </button>
+          {(s.status || '').toLowerCase() !== 'inactive' && (
+            <button
+              type="button"
+              className="undelegate-btn"
+              disabled={undelegatingStakeAccount != null || (s.status || '').toLowerCase() !== 'active'}
+              onClick={() => handleUndelegate(s)}
+            >
+              {undelegatingStakeAccount === s.stake_account ? (
+                'Signing…'
+              ) : (
+                <>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M7 17l10-10M7 7v10h10" />
+                  </svg>
+                  Undelegate
+                </>
+              )}
+            </button>
+          )}
           {(() => {
             const inactiveNum = parseFloat(s.inactive_balance);
             const hasInactive = !Number.isNaN(inactiveNum) && inactiveNum > 0;
