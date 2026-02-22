@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { VersionedTransaction } from '@solana/web3.js';
-import { createStakeTransaction, broadcastSignedTransaction, clusterToNetwork, getStakes, createUndelegateTransaction } from './figmentStake';
+import { createStakeTransaction, broadcastSignedTransaction, clusterToNetwork, getStakes, createUndelegateTransaction, createWithdrawTransaction } from './figmentStake';
 import { fetchStakeActivity, mapActivityToUI } from './stakeActivity';
 
 const TABS = ['stake', 'rewards', 'activity'];
@@ -241,6 +241,8 @@ function RewardsPanel({ onBalanceRefetch }) {
   const [stakesRefetchKey, setStakesRefetchKey] = useState(0);
   const [undelegatingStakeAccount, setUndelegatingStakeAccount] = useState(null);
   const [undelegateError, setUndelegateError] = useState('');
+  const [withdrawingStakeAccount, setWithdrawingStakeAccount] = useState(null);
+  const [withdrawError, setWithdrawError] = useState('');
 
   useEffect(() => {
     setError('');
@@ -291,6 +293,40 @@ function RewardsPanel({ onBalanceRefetch }) {
     }
   };
 
+  const handleWithdraw = async (stake) => {
+    const stakeAccount = stake.stake_account;
+    if (!stakeAccount || !publicKey) return;
+    const rawInactive = parseFloat(stake.inactive_balance);
+    const amountSol = Number.isNaN(rawInactive) || rawInactive <= 0
+      ? 0
+      : (rawInactive >= 1e8 ? rawInactive / 1e9 : rawInactive);
+    if (amountSol <= 0) return;
+    setWithdrawError('');
+    setWithdrawingStakeAccount(stakeAccount);
+    try {
+      const { unsignedTxHex } = await createWithdrawTransaction({
+        stakeAccount,
+        recipientAccount: publicKey.toBase58(),
+        amountSol,
+        network,
+      });
+      const txBytes = hexToBytes(unsignedTxHex);
+      const versionedTx = VersionedTransaction.deserialize(txBytes);
+      if (!signTransaction) {
+        throw new Error('Wallet does not support signing transactions');
+      }
+      const signedTx = await signTransaction(versionedTx);
+      const signedHex = bytesToHex(signedTx.serialize());
+      await broadcastSignedTransaction({ signedPayloadHex: signedHex, network });
+      setStakesRefetchKey((k) => k + 1);
+      if (typeof onBalanceRefetch === 'function') onBalanceRefetch();
+    } catch (e) {
+      setWithdrawError(e?.message || String(e));
+    } finally {
+      setWithdrawingStakeAccount(null);
+    }
+  };
+
   const totalActive = stakes.reduce((sum, s) => sum + (parseFloat(s.active_balance) || 0), 0);
   const totalInactive = stakes.reduce((sum, s) => sum + (parseFloat(s.inactive_balance) || 0), 0);
   const totalSol = stakes.reduce((sum, s) => {
@@ -319,6 +355,7 @@ function RewardsPanel({ onBalanceRefetch }) {
       </div>
       {error && <div className="stake-error">{error}</div>}
       {undelegateError && <div className="stake-error">{undelegateError}</div>}
+      {withdrawError && <div className="stake-error">{withdrawError}</div>}
       {loading && <div className="rewards-loading">Loading stakes…</div>}
       {!loading && !error && stakes.length === 0 && !publicKey && (
         <div className="rewards-empty">Connect your wallet to see stake positions.</div>
@@ -360,6 +397,24 @@ function RewardsPanel({ onBalanceRefetch }) {
               </>
             )}
           </button>
+          {(() => {
+            const inactiveNum = parseFloat(s.inactive_balance);
+            const hasInactive = !Number.isNaN(inactiveNum) && inactiveNum > 0;
+            const statusLower = (s.status || '').toLowerCase();
+            const isNotActivating = statusLower !== 'activating';
+            const showWithdraw = hasInactive && isNotActivating;
+            if (!showWithdraw) return null;
+            return (
+              <button
+                type="button"
+                className="withdraw-btn"
+                disabled={withdrawingStakeAccount != null}
+                onClick={() => handleWithdraw(s)}
+              >
+                {withdrawingStakeAccount === s.stake_account ? 'Signing…' : 'Withdrawal'}
+              </button>
+            );
+          })()}
         </div>
       ))}
     </div>

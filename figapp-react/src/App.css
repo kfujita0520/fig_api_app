@@ -215,6 +215,15 @@ body {
 }
 .undelegate-btn:hover { background: #f9fafb; border-color: #9ca3af; }
 .undelegate-btn svg { width: 14px; height: 14px; }
+.withdraw-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 100%; padding: 8px 12px; margin-top: 8px;
+  background: #fff; color: #374151; border: 1px solid #d1d5db;
+  border-radius: 6px; font-size: 0.8125rem; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+}
+.withdraw-btn:hover { background: #f9fafb; border-color: #9ca3af; }
+.withdraw-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* Address clickable (wallet) */
 .address { cursor: pointer; }

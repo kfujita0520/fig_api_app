@@ -163,6 +163,48 @@ export async function createUndelegateTransaction({ stakeAccount, network }) {
 }
 
 /**
+ * Create an unsigned withdraw transaction via Figment (withdraw SOL from deactivated stake account).
+ * @param {{ stakeAccount: string, recipientAccount: string, amountSol: number, network: "mainnet"|"devnet"|"testnet" }} params
+ * @returns {Promise<{ unsignedTxHex: string }>}
+ */
+export async function createWithdrawTransaction({ stakeAccount, recipientAccount, amountSol, network }) {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('Figment API key is not configured. Set VITE_FIGMENT_API_KEY in .env');
+  }
+
+  const res = await fetch(`${FIGMENT_API_BASE}/solana/withdraw`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+    },
+    body: JSON.stringify({
+      stake_account: stakeAccount,
+      recipient_account: recipientAccount,
+      amount_sol: amountSol,
+      network,
+    }),
+  });
+
+  const body = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    const msg = body?.error?.message || body?.message || res.statusText || 'Withdraw request failed';
+    throw new Error(msg);
+  }
+
+  const data = body?.data ?? body;
+  const unsignedTxHex =
+    data?.unsigned_tx_serialized_hex ?? data?.unsigned_transaction_serialized ?? data?.unsignedTx_serialized_hex;
+  if (!unsignedTxHex || typeof unsignedTxHex !== 'string') {
+    throw new Error('Invalid response: missing unsigned transaction');
+  }
+
+  return { unsignedTxHex: unsignedTxHex.replace(/^0x/i, '') };
+}
+
+/**
  * Fetch list of stake accounts from Figment.
  * @param {{ network: "mainnet"|"devnet"|"testnet", stakeAuthority?: string }} params
  * @returns {Promise<Array<{ id: string, stake_account: string, status: string, active_balance: string|null, inactive_balance: string|null, balance: string|null }>>}
