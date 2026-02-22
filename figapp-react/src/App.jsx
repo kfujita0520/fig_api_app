@@ -3,15 +3,9 @@ import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { VersionedTransaction } from '@solana/web3.js';
 import { createStakeTransaction, broadcastSignedTransaction, clusterToNetwork, getStakes, createUndelegateTransaction } from './figmentStake';
+import { fetchStakeActivity, mapActivityToUI } from './stakeActivity';
 
 const TABS = ['stake', 'rewards', 'activity'];
-
-const ACTIVITY_ITEMS = [
-  { date: 'FEB 19', type: 'stake', amount: '0.11 SOL', status: 'Activating', note: '1 day until active', statusDot: 'yellow' },
-  { date: 'FEB 19', type: 'unstake', amount: '0.098 SOL', status: 'Exiting', note: '1 day until exit', statusDot: 'yellow' },
-  { date: 'FEB 9', type: 'stake', amount: '0.1 SOL', status: 'Active', note: null, statusDot: 'green' },
-  { date: 'FEB 9', type: 'stake', amount: '0.1 SOL', status: 'Active', note: null, statusDot: 'green' },
-];
 
 function formatStakeBalance(value) {
   if (value == null || value === '') return '0 SOL';
@@ -372,11 +366,74 @@ function RewardsPanel({ onBalanceRefetch }) {
   );
 }
 
-function ActivityPanel() {
+function ActivityPanel({ connection, publicKey, isActive, refetchKey, cluster }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!isActive || !connection || !publicKey) {
+      setItems([]);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    setError('');
+    const network = clusterToNetwork(cluster || 'devnet');
+    Promise.all([
+      fetchStakeActivity(connection, publicKey),
+      getStakes({ network, stakeAuthority: publicKey.toBase58() }).catch(() => []),
+    ])
+      .then(([entries, stakes]) => {
+        if (!cancelled) setItems(mapActivityToUI(entries, stakes));
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setError(e?.message || 'Failed to load activity');
+          setItems([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [connection, publicKey, isActive, refetchKey, cluster]);
+
+  const explorerBase = 'https://explorer.solana.com';
+  const clusterParam = cluster === 'mainnet-beta' ? '' : `?cluster=${cluster || 'devnet'}`;
+
+  if (!publicKey) {
+    return (
+      <div className="activity-list">
+        <div className="rewards-empty">Connect your wallet to see stake and unstake activity.</div>
+      </div>
+    );
+  }
+  if (loading) {
+    return (
+      <div className="activity-list">
+        <div className="rewards-loading">Loading activity…</div>
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="activity-list">
+        <div className="stake-error">{error}</div>
+      </div>
+    );
+  }
+  if (items.length === 0) {
+    return (
+      <div className="activity-list">
+        <div className="rewards-empty">No stake or unstake activity yet.</div>
+      </div>
+    );
+  }
   return (
     <div className="activity-list">
-      {ACTIVITY_ITEMS.map((item, i) => (
-        <div key={i} className="activity-item">
+      {items.map((item, i) => (
+        <div key={item.transactionHash ? `${item.transactionHash}-${i}` : i} className="activity-item">
           <div className="activity-left">
             <span className="activity-date">{item.date}</span>
             <span className={`activity-badge ${item.type}`}>{item.type === 'stake' ? 'Stake' : 'Unstake'}</span>
@@ -388,6 +445,22 @@ function ActivityPanel() {
               <span className="activity-status">{item.status}</span>
               {item.note && <span className="activity-status-note">{item.note}</span>}
             </div>
+            {item.transactionHash && (
+              <a
+                href={`${explorerBase}/tx/${item.transactionHash}${clusterParam}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="activity-tx-link"
+                title="View on explorer"
+                aria-label="View transaction on explorer"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                  <polyline points="15 3 21 3 21 9" />
+                  <line x1="10" y1="14" x2="21" y2="3" />
+                </svg>
+              </a>
+            )}
           </div>
         </div>
       ))}
@@ -462,6 +535,7 @@ export default function App() {
   const [modalOpen, setModalOpen] = useState(false);
   const [balance, setBalance] = useState(null);
   const [balanceRefetchKey, setBalanceRefetchKey] = useState(0);
+  const [activityRefetchKey, setActivityRefetchKey] = useState(0);
 
   const { publicKey, connected, disconnect } = useWallet();
   const { setVisible: setWalletModalVisible } = useWalletModal();
@@ -469,6 +543,7 @@ export default function App() {
 
   const walletConnected = !!connected;
   const shortAddress = publicKey ? shortenAddress(publicKey.toBase58()) : '';
+  const cluster = import.meta.env.VITE_SOLANA_CLUSTER || 'devnet';
 
   useEffect(() => {
     if (!publicKey || !connection) return;
@@ -481,7 +556,10 @@ export default function App() {
     return () => { cancelled = true; };
   }, [publicKey, connection, balanceRefetchKey]);
 
-  const handleBalanceRefetch = () => setBalanceRefetchKey((k) => k + 1);
+  const handleBalanceRefetch = () => {
+    setBalanceRefetchKey((k) => k + 1);
+    setActivityRefetchKey((k) => k + 1);
+  };
 
   const handleConnectWallet = () => {
     setWalletModalVisible(true);
@@ -571,7 +649,13 @@ export default function App() {
             className={`tab-panel ${activeTab === 'activity' ? 'active' : ''}`}
             role="tabpanel"
           >
-            <ActivityPanel />
+            <ActivityPanel
+              connection={connection}
+              publicKey={publicKey}
+              isActive={activeTab === 'activity'}
+              refetchKey={activityRefetchKey}
+              cluster={cluster}
+            />
           </div>
         </div>
       </div>
