@@ -3,6 +3,7 @@
  * @see https://docs.figment.io/reference/solana-stake
  * @see https://docs.figment.io/reference/solana-broadcast
  * @see https://docs.figment.io/reference/solana-stakes
+ * @see https://docs.figment.io/reference/solana-undelegate
  * In dev we use the Vite proxy to avoid CORS; in production we call the API directly.
  */
 
@@ -119,6 +120,46 @@ export async function broadcastSignedTransaction({ signedPayloadHex, network }) 
   }
 
   return { transactionHash: txHash };
+}
+
+/**
+ * Create an unsigned undelegate transaction via Figment.
+ * @param {{ stakeAccount: string, network: "mainnet"|"devnet"|"testnet" }} params
+ * @returns {Promise<{ unsignedTxHex: string }>}
+ */
+export async function createUndelegateTransaction({ stakeAccount, network }) {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('Figment API key is not configured. Set VITE_FIGMENT_API_KEY in .env');
+  }
+
+  const res = await fetch(`${FIGMENT_API_BASE}/solana/undelegate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+    },
+    body: JSON.stringify({
+      stake_account: stakeAccount,
+      network,
+    }),
+  });
+
+  const body = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    const msg = body?.error?.message || body?.message || res.statusText || 'Undelegate request failed';
+    throw new Error(msg);
+  }
+
+  const data = body?.data ?? body;
+  const unsignedTxHex =
+    data?.unsigned_tx_serialized_hex ?? data?.unsigned_transaction_serialized ?? data?.unsignedTx_serialized_hex;
+  if (!unsignedTxHex || typeof unsignedTxHex !== 'string') {
+    throw new Error('Invalid response: missing unsigned transaction');
+  }
+
+  return { unsignedTxHex: unsignedTxHex.replace(/^0x/i, '') };
 }
 
 /**

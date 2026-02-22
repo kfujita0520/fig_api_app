@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { VersionedTransaction } from '@solana/web3.js';
-import { createStakeTransaction, broadcastSignedTransaction, clusterToNetwork, getStakes } from './figmentStake';
+import { createStakeTransaction, broadcastSignedTransaction, clusterToNetwork, getStakes, createUndelegateTransaction } from './figmentStake';
 
 const TABS = ['stake', 'rewards', 'activity'];
 
@@ -236,14 +236,17 @@ function StakePanel({ walletConnected, onConnectWallet, balanceSol, onBalanceRef
   );
 }
 
-function RewardsPanel() {
-  const { publicKey } = useWallet();
+function RewardsPanel({ onBalanceRefetch }) {
+  const { publicKey, signTransaction } = useWallet();
   const cluster = import.meta.env.VITE_SOLANA_CLUSTER || 'devnet';
   const network = clusterToNetwork(cluster);
 
   const [stakes, setStakes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [stakesRefetchKey, setStakesRefetchKey] = useState(0);
+  const [undelegatingStakeAccount, setUndelegatingStakeAccount] = useState(null);
+  const [undelegateError, setUndelegateError] = useState('');
 
   useEffect(() => {
     setError('');
@@ -268,7 +271,31 @@ function RewardsPanel() {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [network, publicKey]);
+  }, [network, publicKey, stakesRefetchKey]);
+
+  const handleUndelegate = async (stake) => {
+    const stakeAccount = stake.stake_account;
+    if (!stakeAccount || !publicKey) return;
+    setUndelegateError('');
+    setUndelegatingStakeAccount(stakeAccount);
+    try {
+      const { unsignedTxHex } = await createUndelegateTransaction({ stakeAccount, network });
+      const txBytes = hexToBytes(unsignedTxHex);
+      const versionedTx = VersionedTransaction.deserialize(txBytes);
+      if (!signTransaction) {
+        throw new Error('Wallet does not support signing transactions');
+      }
+      const signedTx = await signTransaction(versionedTx);
+      const signedHex = bytesToHex(signedTx.serialize());
+      await broadcastSignedTransaction({ signedPayloadHex: signedHex, network });
+      setStakesRefetchKey((k) => k + 1);
+      if (typeof onBalanceRefetch === 'function') onBalanceRefetch();
+    } catch (e) {
+      setUndelegateError(e?.message || String(e));
+    } finally {
+      setUndelegatingStakeAccount(null);
+    }
+  };
 
   const totalActive = stakes.reduce((sum, s) => sum + (parseFloat(s.active_balance) || 0), 0);
   const totalInactive = stakes.reduce((sum, s) => sum + (parseFloat(s.inactive_balance) || 0), 0);
@@ -297,6 +324,7 @@ function RewardsPanel() {
         <div className="rewards-na">N/A</div>
       </div>
       {error && <div className="stake-error">{error}</div>}
+      {undelegateError && <div className="stake-error">{undelegateError}</div>}
       {loading && <div className="rewards-loading">Loading stakes…</div>}
       {!loading && !error && stakes.length === 0 && !publicKey && (
         <div className="rewards-empty">Connect your wallet to see stake positions.</div>
@@ -321,11 +349,22 @@ function RewardsPanel() {
             <DetailRow label="Inactive Stake" value={formatStakeBalance(s.inactive_balance)} />
             <DetailRow label="Rewards" value="N/A" />
           </div>
-          <button type="button" className="undelegate-btn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M7 17l10-10M7 7v10h10" />
-            </svg>
-            Undelegate
+          <button
+            type="button"
+            className="undelegate-btn"
+            disabled={undelegatingStakeAccount != null || (s.status || '').toLowerCase() !== 'active'}
+            onClick={() => handleUndelegate(s)}
+          >
+            {undelegatingStakeAccount === s.stake_account ? (
+              'Signing…'
+            ) : (
+              <>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M7 17l10-10M7 7v10h10" />
+                </svg>
+                Undelegate
+              </>
+            )}
           </button>
         </div>
       ))}
@@ -525,7 +564,7 @@ export default function App() {
             className={`tab-panel ${activeTab === 'rewards' ? 'active' : ''}`}
             role="tabpanel"
           >
-            <RewardsPanel />
+            <RewardsPanel onBalanceRefetch={handleBalanceRefetch} />
           </div>
           <div
             id="panel-activity"
