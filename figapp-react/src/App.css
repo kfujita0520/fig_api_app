@@ -215,8 +215,12 @@ body {
 }
 .undelegate-btn:hover { background: #f9fafb; border-color: #9ca3af; }
 .undelegate-btn svg { width: 14px; height: 14px; }
+.btn-label-with-arrow {
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-label-with-arrow svg { flex-shrink: 0; }
 .withdraw-btn {
-  display: inline-flex; align-items: center; justify-content: center;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   width: 100%; padding: 8px 12px; margin-top: 8px;
   background: #fff; color: #374151; border: 1px solid #d1d5db;
   border-radius: 6px; font-size: 0.8125rem; font-weight: 600;
@@ -224,6 +228,7 @@ body {
 }
 .withdraw-btn:hover { background: #f9fafb; border-color: #9ca3af; }
 .withdraw-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.withdraw-btn svg { width: 14px; height: 14px; }
 
 /* Address clickable (wallet) */
 .address { cursor: pointer; }

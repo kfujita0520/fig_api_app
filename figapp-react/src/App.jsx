@@ -390,12 +390,12 @@ function RewardsPanel({ onBalanceRefetch }) {
               {undelegatingStakeAccount === s.stake_account ? (
                 'Signing…'
               ) : (
-                <>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M7 17l10-10M7 7v10h10" />
+                <span className="btn-label-with-arrow">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M6 9l6 6 6-6" />
                   </svg>
-                  Undelegate
-                </>
+                  <span>Undelegate</span>
+                </span>
               )}
             </button>
           )}
@@ -413,7 +413,16 @@ function RewardsPanel({ onBalanceRefetch }) {
                 disabled={withdrawingStakeAccount != null}
                 onClick={() => handleWithdraw(s)}
               >
-                {withdrawingStakeAccount === s.stake_account ? 'Signing…' : 'Withdrawal'}
+                {withdrawingStakeAccount === s.stake_account ? (
+                  'Signing…'
+                ) : (
+                  <span className="btn-label-with-arrow">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                    <span>Withdrawal</span>
+                  </span>
+                )}
               </button>
             );
           })()}
