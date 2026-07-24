@@ -125,21 +125,27 @@ body {
 .minimum { font-size: 0.75rem; color: #9ca3af; text-align: center; margin-top: 14px; }
 
 /* Activity panel */
-.activity-list { display: flex; flex-direction: column; gap: 0; }
-.activity-item {
-  display: flex; align-items: flex-start; justify-content: space-between;
-  padding: 12px 0; border-bottom: 1px solid #f3f4f6;
+.activity-list {
+  display: flex; flex-direction: column; gap: 8px;
+  max-height: 380px; overflow-y: auto;
+  margin: -20px -16px -16px; padding: 8px;
+  background: #f9fafb;
 }
-.activity-item:last-child { border-bottom: none; }
-.activity-left { display: flex; flex-direction: column; gap: 4px; }
-.activity-date { font-size: 0.75rem; color: #9ca3af; }
+.activity-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  min-height: 88px; padding: 14px 16px;
+  border: 1px solid #f3f4f6; border-radius: 10px; background: #fff;
+}
+.activity-left { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.activity-meta { display: flex; align-items: center; gap: 8px; }
+.activity-date { font-size: 0.8125rem; color: #6b7280; white-space: nowrap; }
 .activity-badge {
   display: inline-block;
-  padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; width: fit-content;
+  padding: 3px 7px; border-radius: 4px; font-size: 0.75rem; font-weight: 500; width: fit-content;
 }
 .activity-badge.stake { background: #d1fae5; color: #065f46; }
 .activity-badge.unstake { background: #e5e7eb; color: #4b5563; }
-.activity-amount { font-size: 0.875rem; font-weight: 600; color: #111; }
+.activity-amount { font-size: 1.125rem; font-weight: 600; color: #111; white-space: nowrap; }
 .activity-right { display: flex; align-items: center; gap: 8px; text-align: right; }
 .activity-status-wrap { display: flex; flex-direction: column; align-items: flex-end; }
 .activity-status { font-size: 0.8125rem; font-weight: 500; color: #111; }
@@ -155,6 +161,7 @@ body {
 }
 .status-dot.yellow { background: #fbbf24; }
 .status-dot.green { background: #10b981; }
+.status-dot.gray { background: #b6b6b6; }
 
 /* Rewards panel */
 .rewards-panel { max-height: 380px; overflow-y: auto; }

@@ -446,11 +446,14 @@ function ActivityPanel({ connection, publicKey, isActive, refetchKey, cluster })
     setLoading(true);
     setError('');
     const network = clusterToNetwork(cluster || 'devnet');
-    Promise.all([
-      fetchStakeActivity(connection, publicKey),
-      getStakes({ network, stakeAuthority: publicKey.toBase58() }).catch(() => []),
-    ])
-      .then(([entries, stakes]) => {
+    getStakes({ network, stakeAuthority: publicKey.toBase58() })
+      .catch(() => [])
+      .then(async (stakes) => {
+        const stakeAccounts = stakes.map((stake) => stake.stake_account).filter(Boolean);
+        const entries = await fetchStakeActivity(connection, publicKey, stakeAccounts);
+        return { entries, stakes };
+      })
+      .then(({ entries, stakes }) => {
         if (!cancelled) setItems(mapActivityToUI(entries, stakes));
       })
       .catch((e) => {
@@ -501,8 +504,10 @@ function ActivityPanel({ connection, publicKey, isActive, refetchKey, cluster })
       {items.map((item, i) => (
         <div key={item.transactionHash ? `${item.transactionHash}-${i}` : i} className="activity-item">
           <div className="activity-left">
-            <span className="activity-date">{item.date}</span>
-            <span className={`activity-badge ${item.type}`}>{item.type === 'stake' ? 'Stake' : 'Unstake'}</span>
+            <div className="activity-meta">
+              <span className="activity-date">{item.date}</span>
+              <span className={`activity-badge ${item.type}`}>{item.type === 'stake' ? 'Stake' : 'Unstake'}</span>
+            </div>
             <span className="activity-amount">{item.amount}</span>
           </div>
           <div className="activity-right">

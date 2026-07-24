@@ -11,7 +11,11 @@ import '@solana/wallet-adapter-react-ui/styles.css';
 
 function WalletAdapterApp() {
   const cluster = import.meta.env.VITE_SOLANA_CLUSTER || 'devnet';
-  const endpoint = useMemo(() => clusterApiUrl(cluster), [cluster]);
+  const configuredRpcUrl = import.meta.env.VITE_SOLANA_RPC_URL?.trim();
+  const endpoint = useMemo(
+    () => configuredRpcUrl || clusterApiUrl(cluster),
+    [cluster, configuredRpcUrl]
+  );
   const wallets = useMemo(
     () => [
       new PhantomWalletAdapter(),
