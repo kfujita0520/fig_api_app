@@ -1,7 +1,8 @@
 /**
- * Fetch stake/unstake activity history from Solana RPC.
+ * Fetch stake / unstake / withdraw activity history from Solana RPC.
  * Uses getSignaturesForAddress + getTransaction, filters Stake Program instructions,
  * and maps to activity items (date, type, amount, status, tx hash).
+ * Types: stake (Delegate), unstake (Deactivate), withdraw (Withdraw).
  * @see https://solana.com/docs/rpc/json-structures
  */
 
@@ -88,7 +89,7 @@ function getInstructionData(data) {
 /**
  * Process a single transaction and extract stake-related activity entries.
  * @param {{ signature: string, blockTime?: number, transaction?: object, meta?: object, loadedAddresses?: object }} txResponse - full getTransaction response
- * @returns {Array<{ type: 'stake'|'unstake', amountSol: number, blockTime?: number, transactionHash: string, stakeAccount?: string, status?: string }>}
+ * @returns {Array<{ type: 'stake'|'unstake'|'withdraw', amountSol: number, blockTime?: number, transactionHash: string, stakeAccount?: string, status?: string }>}
  */
 function parseTransactionActivity(txResponse) {
   const { signature, blockTime, transaction: tx, meta, loadedAddresses } = txResponse ?? {};
@@ -118,7 +119,8 @@ function parseTransactionActivity(txResponse) {
 
     let type = null;
     if (discriminator === STAKE_IX.DELEGATE) type = 'stake';
-    else if (discriminator === STAKE_IX.WITHDRAW || discriminator === STAKE_IX.DEACTIVATE) type = 'unstake';
+    else if (discriminator === STAKE_IX.DEACTIVATE) type = 'unstake';
+    else if (discriminator === STAKE_IX.WITHDRAW) type = 'withdraw';
     if (!type) return;
 
     const accountIndices = ix.accountKeyIndexes ?? ix.accounts ?? [];
@@ -138,15 +140,13 @@ function parseTransactionActivity(txResponse) {
       amountLamports = Math.max(0, post - pre);
       // Delegating an already-created stake account does not change its balance.
       if (amountLamports === 0) amountLamports = post;
+    } else if (type === 'withdraw') {
+      const pre = preBalances[stakeAccountIndex] ?? 0;
+      const post = postBalances[stakeAccountIndex] ?? 0;
+      amountLamports = Math.max(0, pre - post);
     } else if (type === 'unstake') {
-      if (discriminator === STAKE_IX.WITHDRAW) {
-        const pre = preBalances[stakeAccountIndex] ?? 0;
-        const post = postBalances[stakeAccountIndex] ?? 0;
-        amountLamports = Math.max(0, pre - post);
-      } else {
-        const pre = preBalances[stakeAccountIndex] ?? 0;
-        amountLamports = pre;
-      }
+      const pre = preBalances[stakeAccountIndex] ?? 0;
+      amountLamports = pre;
     }
 
     const amountSol = amountLamports / LAMPORTS_PER_SOL;
@@ -158,7 +158,7 @@ function parseTransactionActivity(txResponse) {
       stakeAccount,
       status: type === 'stake'
         ? 'Activating'
-        : discriminator === STAKE_IX.WITHDRAW
+        : type === 'withdraw'
           ? 'Inactive'
           : 'Exiting',
     });
@@ -177,7 +177,7 @@ function parseTransactionActivity(txResponse) {
  * @param {import('@solana/web3.js').Connection} connection
  * @param {import('@solana/web3.js').PublicKey} publicKey
  * @param {string[]} [stakeAccounts] stake accounts returned by Figment
- * @returns {Promise<Array<{ type: 'stake'|'unstake', amountSol: number, blockTime?: number, transactionHash: string, stakeAccount?: string, status?: string }>>}
+ * @returns {Promise<Array<{ type: 'stake'|'unstake'|'withdraw', amountSol: number, blockTime?: number, transactionHash: string, stakeAccount?: string, status?: string }>>}
  */
 export async function fetchStakeActivity(connection, publicKey, stakeAccounts = []) {
   if (!connection || !publicKey) return [];
@@ -275,10 +275,14 @@ export function mapActivityToUI(entries, stakes = []) {
       const activeBalance = parseFloat(stake.active_balance);
       const hasOnlyInactiveBalance = inactiveBalance > 0 && !(activeBalance > 0);
       const isStakeStatus = statusLower === 'active' || statusLower === 'activating';
-      const isUnstakeStatus = ['inactive', 'exiting', 'deactivating', 'withdrawn'].includes(statusLower);
-      const type = isUnstakeStatus || (!isStakeStatus && hasOnlyInactiveBalance)
-        ? 'unstake'
-        : 'stake';
+      const isUnstakeStatus = statusLower === 'exiting' || statusLower === 'deactivating';
+      const isWithdrawStatus = statusLower === 'inactive' || statusLower === 'withdrawn';
+      let type = 'stake';
+      if (isWithdrawStatus || (!isStakeStatus && !isUnstakeStatus && hasOnlyInactiveBalance)) {
+        type = 'withdraw';
+      } else if (isUnstakeStatus) {
+        type = 'unstake';
+      }
       const amount = parseFloat(stake.balance);
       return {
         type,
@@ -314,11 +318,16 @@ export function mapActivityToUI(entries, stakes = []) {
         ? '1 day until exit'
         : null;
 
+    const defaultStatus =
+      e.type === 'stake' ? 'Activating'
+      : e.type === 'withdraw' ? 'Inactive'
+      : 'Exiting';
+
     return {
       date: dateStr,
       type: e.type,
       amount: amountStr,
-      status: status || (e.type === 'stake' ? 'Activating' : 'Exiting'),
+      status: status || defaultStatus,
       note,
       statusDot,
       transactionHash: e.transactionHash,

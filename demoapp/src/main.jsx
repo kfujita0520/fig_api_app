@@ -22,12 +22,8 @@ function App() {
   return (
     <div className="demoapp">
       <header className="demoapp__header">
-        <p className="demoapp__eyebrow">demoapp</p>
-        <h1>Stake widget host</h1>
-        <p>
-          Imports <code>@fig/stake-widget</code> via{' '}
-          <code>file:../figapp/packages/stake-widget</code>.
-        </p>
+        <p className="demoapp__eyebrow">Stake Widget Demo App</p>
+        
       </header>
 
       <FigmentStakeProviders cluster={cluster} endpoint={rpcUrl} wallets={wallets}>

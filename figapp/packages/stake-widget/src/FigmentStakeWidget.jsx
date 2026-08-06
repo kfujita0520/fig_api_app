@@ -242,7 +242,7 @@ function StakePanel({
       >
         {isStaking ? 'Staking…' : 'Stake'}
       </button>
-      <div className="minimum">0.0025 SOL minimum</div>
+      <div className="minimum">1.1 SOL minimum</div>
     </div>
   );
 }
@@ -397,12 +397,17 @@ function RewardsPanel({ onBalanceRefetch, cluster }) {
             <DetailRow label="Rewards" value="N/A" />
           </div>
           {(s.status || '').toLowerCase() !== 'inactive' && (
-            <button
-              type="button"
-              className="undelegate-btn"
-              disabled={undelegatingStakeAccount != null || (s.status || '').toLowerCase() !== 'active'}
-              onClick={() => handleUndelegate(s)}
-            >
+              <button
+                type="button"
+                className="undelegate-btn"
+                disabled={undelegatingStakeAccount != null || (s.status || '').toLowerCase() !== 'active'}
+                title={
+                  (s.status || '').toLowerCase() === 'active'
+                    ? 'Undelegate this stake'
+                    : 'Available when stake status is Active'
+                }
+                onClick={() => handleUndelegate(s)}
+              >
               {undelegatingStakeAccount === s.stake_account ? (
                 'Signing…'
               ) : (
@@ -489,7 +494,7 @@ function ActivityPanel({ connection, publicKey, isActive, refetchKey, cluster })
   if (!publicKey) {
     return (
       <div className="activity-list">
-        <div className="rewards-empty">Connect your wallet to see stake and unstake activity.</div>
+        <div className="rewards-empty">Connect your wallet to see stake, unstake, and withdraw activity.</div>
       </div>
     );
   }
@@ -510,7 +515,7 @@ function ActivityPanel({ connection, publicKey, isActive, refetchKey, cluster })
   if (items.length === 0) {
     return (
       <div className="activity-list">
-        <div className="rewards-empty">No stake or unstake activity yet.</div>
+        <div className="rewards-empty">No stake, unstake, or withdraw activity yet.</div>
       </div>
     );
   }
@@ -521,7 +526,9 @@ function ActivityPanel({ connection, publicKey, isActive, refetchKey, cluster })
           <div className="activity-left">
             <div className="activity-meta">
               <span className="activity-date">{item.date}</span>
-              <span className={`activity-badge ${item.type}`}>{item.type === 'stake' ? 'Stake' : 'Unstake'}</span>
+              <span className={`activity-badge ${item.type}`}>
+                {item.type === 'stake' ? 'Stake' : item.type === 'withdraw' ? 'Withdraw' : 'Unstake'}
+              </span>
             </div>
             <span className="activity-amount">{item.amount}</span>
           </div>

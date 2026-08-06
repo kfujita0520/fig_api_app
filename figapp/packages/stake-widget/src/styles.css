@@ -387,6 +387,11 @@
   color: #4b5563;
 }
 
+.fig-stake-widget .activity-badge.withdraw {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
 .fig-stake-widget .activity-amount {
   font-size: 1.125rem;
   font-weight: 600;
@@ -625,6 +630,19 @@
 .fig-stake-widget .undelegate-btn:hover {
   background: #f9fafb;
   border-color: #9ca3af;
+}
+
+.fig-stake-widget .undelegate-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background: #f3f4f6;
+  color: #9ca3af;
+  border-color: #e5e7eb;
+}
+
+.fig-stake-widget .undelegate-btn:disabled:hover {
+  background: #f3f4f6;
+  border-color: #e5e7eb;
 }
 
 .fig-stake-widget .undelegate-btn svg {
