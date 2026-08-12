@@ -24,7 +24,7 @@ Provides the same functionality as `demo`, but imports the components **directly
 
 This setup is intended for development, making it much easier to verify changes without rebuilding and reinstalling the tarball after every modification.
 
-### `figapi/`
+### `figapp-ract/`
 
 A simple standalone web application for interacting with the API.
 
@@ -35,7 +35,7 @@ This project is useful for testing API endpoints independently of the UI compone
 - Use **`demoapp`** during development for rapid iteration on UI components.
 - Build and package **`figapp`** as a tarball when validating the distribution package.
 - Use **`demo`** to verify that the packaged tarball installs and behaves correctly in a consumer application.
-- Use **`figapi`** for standalone API testing and development.
+- Use **`figapp-react`** for standalone API testing and development.
 
 ## Purpose
 
