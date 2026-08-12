@@ -14,18 +14,18 @@ body {
   min-height: 100vh;
 }
 
-.demo {
+.demoapp {
   max-width: 40rem;
   margin: 0 auto;
   padding: 2.5rem 1.25rem 4rem;
 }
 
-.demo__header {
+.demoapp__header {
   margin-bottom: 1.75rem;
   text-align: center;
 }
 
-.demo__eyebrow {
+.demoapp__eyebrow {
   margin: 0 0 0.35rem;
   font-size: 0.75rem;
   letter-spacing: 0.08em;
@@ -33,18 +33,18 @@ body {
   color: #5b6b66;
 }
 
-.demo__header h1 {
+.demoapp__header h1 {
   margin: 0;
   font-size: 1.75rem;
   letter-spacing: -0.03em;
 }
 
-.demo__header p {
+.demoapp__header p {
   margin: 0.5rem 0 0;
   color: #5b6b66;
 }
 
-.demo__header code {
+.demoapp__header code {
   font-family: "IBM Plex Mono", ui-monospace, monospace;
   font-size: 0.9em;
 }

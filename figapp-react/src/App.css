@@ -1,0 +1,348 @@
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: 'Inter', -apple-system, sans-serif;
+  background: #f9fafb;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem 1rem;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.header h1 { font-size: 2rem; font-weight: 700; margin: 0 0 0.5rem 0; color: #111; }
+.header p { font-size: 1.125rem; color: #6b7280; margin: 0; }
+
+.widget {
+  width: 100%;
+  max-width: 350px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.widget-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.chain { display: flex; align-items: center; gap: 8px; font-size: 0.875rem; font-weight: 600; color: #111; }
+.chain-icon { width: 20px; height: 20px; background: linear-gradient(180deg, #9945FF 0%, #14F195 100%); border-radius: 50%; }
+.address { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #6b7280; font-family: ui-monospace, monospace; }
+.address-icon { width: 16px; height: 16px; background: #e5e7eb; border-radius: 4px; }
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0 16px;
+  gap: 24px;
+}
+
+.tab {
+  padding: 12px 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #9ca3af;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.tab:hover { color: #374151; }
+.tab.active { color: #111; border-bottom-color: #111; }
+
+.content { padding: 20px 16px 16px; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* Stake panel – balance box (card) */
+.stake-balance-box {
+  background: #f9fafb; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;
+  border: 1px solid #f3f4f6; overflow: visible;
+}
+.stake-row {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+}
+.stake-balance-left { flex-shrink: 0; min-width: 0; flex: 1; }
+.stake-amount-editable {
+  display: flex; align-items: baseline; gap: 4px; flex-wrap: nowrap;
+}
+.stake-amount-input-inline {
+  flex: 1; min-width: 60px; max-width: 180px;
+  font-size: 1.5rem; font-weight: 600; color: #6b7280; font-family: inherit;
+  border: none; background: transparent; padding: 0;
+  -moz-appearance: textfield;
+}
+.stake-amount-input-inline::placeholder { color: #9ca3af; }
+.stake-amount-input-inline::-webkit-outer-spin-button,
+.stake-amount-input-inline::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.stake-amount-input-inline:focus { outline: none; }
+.stake-amount-unit { font-size: 1.5rem; font-weight: 600; color: #6b7280; flex-shrink: 0; }
+.stake-fiat { font-size: 0.75rem; color: #9ca3af; margin-top: 4px; }
+.stake-btn {
+  display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
+  padding: 8px 12px; background: #111; color: #fff; border: none; border-radius: 6px;
+  font-size: 0.8125rem; font-weight: 600; cursor: pointer; font-family: inherit;
+  white-space: nowrap; min-width: fit-content;
+}
+.stake-btn:hover { background: #333; }
+.stake-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.stake-submit-btn {
+  display: block; width: 100%; margin-top: 12px; padding: 12px 14px;
+  background: #111; color: #fff; border: none; border-radius: 8px;
+  font-size: 0.9375rem; font-weight: 600; cursor: pointer; font-family: inherit;
+}
+.stake-submit-btn:hover:not(:disabled) { background: #333; }
+.stake-submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.stake-error { margin-top: 10px; padding: 8px 10px; background: #fef2f2; color: #b91c1c; border-radius: 6px; font-size: 0.8125rem; }
+.stake-success { margin-top: 10px; padding: 8px 10px; background: #f0fdf4; color: #166534; border-radius: 6px; font-size: 0.8125rem; }
+.stake-success a { color: #15803d; font-weight: 500; }
+
+.details {
+  background: #f9fafb; border-radius: 8px; padding: 12px 14px; font-size: 0.8125rem;
+}
+.detail-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+.detail-row:not(:last-child) { border-bottom: 1px solid #e5e7eb; }
+.detail-label { color: #6b7280; }
+.detail-value { font-weight: 500; color: #111; }
+.validator-cell { display: flex; align-items: center; gap: 8px; }
+.validator-icon {
+  width: 24px; height: 24px; background: #fbbf24; border-radius: 4px;
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.75rem; color: #111;
+}
+.minimum { font-size: 0.75rem; color: #9ca3af; text-align: center; margin-top: 14px; }
+
+/* Activity panel */
+.activity-list {
+  display: flex; flex-direction: column; gap: 8px;
+  max-height: 380px; overflow-y: auto;
+  margin: -20px -16px -16px; padding: 8px;
+  background: #f9fafb;
+}
+.activity-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  min-height: 88px; padding: 14px 16px;
+  border: 1px solid #f3f4f6; border-radius: 10px; background: #fff;
+}
+.activity-left { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.activity-meta { display: flex; align-items: center; gap: 8px; }
+.activity-date { font-size: 0.8125rem; color: #6b7280; white-space: nowrap; }
+.activity-badge {
+  display: inline-block;
+  padding: 3px 7px; border-radius: 4px; font-size: 0.75rem; font-weight: 500; width: fit-content;
+}
+.activity-badge.stake { background: #d1fae5; color: #065f46; }
+.activity-badge.unstake { background: #e5e7eb; color: #4b5563; }
+.activity-amount { font-size: 1.125rem; font-weight: 600; color: #111; white-space: nowrap; }
+.activity-right { display: flex; align-items: center; gap: 8px; text-align: right; }
+.activity-status-wrap { display: flex; flex-direction: column; align-items: flex-end; }
+.activity-status { font-size: 0.8125rem; font-weight: 500; color: #111; }
+.activity-status-note { font-size: 0.75rem; color: #9ca3af; margin-top: 2px; }
+.activity-tx-link {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; color: #6b7280; flex-shrink: 0;
+}
+.activity-tx-link:hover { color: #111; }
+.activity-tx-link svg { width: 16px; height: 16px; }
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.status-dot.yellow { background: #fbbf24; }
+.status-dot.green { background: #10b981; }
+.status-dot.gray { background: #b6b6b6; }
+
+/* Rewards panel */
+.rewards-panel { max-height: 380px; overflow-y: auto; }
+.rewards-loading, .rewards-empty { padding: 12px; color: #64748b; font-size: 0.875rem; }
+.rewards-empty { font-style: italic; }
+.rewards-stake-section { margin-bottom: 16px; }
+.rewards-stake-total { font-size: 1.5rem; font-weight: 600; color: #111; }
+.rewards-stake-total span.unit { font-weight: 400; color: #9ca3af; margin-left: 2px; }
+.rewards-pills { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.rewards-pill {
+  padding: 4px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600;
+}
+.rewards-pill.active { background: #d1fae5; color: #065f46; }
+.rewards-pill.activating { background: #fef3c7; color: #92400e; }
+.rewards-rewards-section {
+  margin-bottom: 16px;
+  padding: 12px 0;
+  border-top: 1px solid #f3f4f6;
+  position: relative;
+}
+.rewards-rewards-label { font-size: 0.75rem; color: #6b7280; margin-bottom: 4px; }
+.rewards-na { font-size: 1.25rem; font-weight: 600; color: #9ca3af; }
+.rewards-info-icon {
+  position: absolute; top: 12px; right: 0;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #e5e7eb; color: #6b7280;
+  font-size: 0.7rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  cursor: help;
+}
+.reward-card {
+  background: #f9fafb; border-radius: 8px; padding: 12px;
+  margin-bottom: 10px; border: 1px solid #e5e7eb;
+}
+.reward-card:last-child { margin-bottom: 0; }
+.reward-card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.reward-card-address {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.75rem; color: #6b7280; font-family: ui-monospace, monospace;
+}
+.reward-card-address .chain-icon { width: 16px; height: 16px; }
+.reward-card-status {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.8125rem; font-weight: 500; color: #111;
+}
+.reward-card-metrics { font-size: 0.8125rem; margin-bottom: 10px; }
+.reward-card-metrics .detail-row { padding: 4px 0; border: none; }
+.reward-card-metrics .detail-value { font-weight: 600; }
+.undelegate-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; padding: 8px 12px;
+  background: #fff; color: #374151; border: 1px solid #d1d5db;
+  border-radius: 6px; font-size: 0.8125rem; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+}
+.undelegate-btn:hover { background: #f9fafb; border-color: #9ca3af; }
+.undelegate-btn svg { width: 14px; height: 14px; }
+.btn-label-with-arrow {
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-label-with-arrow svg { flex-shrink: 0; }
+.withdraw-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; padding: 8px 12px; margin-top: 8px;
+  background: #fff; color: #374151; border: 1px solid #d1d5db;
+  border-radius: 6px; font-size: 0.8125rem; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+}
+.withdraw-btn:hover { background: #f9fafb; border-color: #9ca3af; }
+.withdraw-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.withdraw-btn svg { width: 14px; height: 14px; }
+
+/* Address clickable (wallet) */
+.address { cursor: pointer; }
+.address:hover { color: #111; }
+.address.wallet-hidden { display: none !important; }
+
+/* Wallet modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+.modal-wallet {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  width: 100%;
+  max-width: 320px;
+  padding: 20px;
+}
+.modal-wallet-address {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #111;
+  font-family: ui-monospace, monospace;
+}
+.modal-wallet-address .chain-icon { width: 24px; height: 24px; flex-shrink: 0; }
+.modal-wallet-link {
+  margin-left: auto;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+.modal-wallet-link:hover { color: #111; }
+.modal-wallet-link svg { width: 16px; height: 16px; }
+.modal-wallet-details { margin-bottom: 20px; }
+.modal-wallet-details .detail-row { padding: 8px 0; }
+.modal-wallet-details .detail-value { font-weight: 600; }
+.modal-disconnect {
+  display: block;
+  width: 100%;
+  padding: 12px 16px;
+  background: #111;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.modal-disconnect:hover { background: #333; }
+
+/* Stake panel: connect state */
+.stake-connect-wrap { display: none; }
+.stake-connect-wrap.is-visible { display: block; }
+.stake-connected-wrap { display: none; }
+.stake-connected-wrap.is-visible { display: block; }
+.stake-input-area {
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.stake-input-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.stake-input-row .stake-amount { margin: 0; }
+.stake-max-btn {
+  padding: 6px 10px;
+  background: #e5e7eb;
+  color: #374151;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.stake-max-btn:hover { background: #d1d5db; }
+.connect-wallet-btn {
+  display: block;
+  width: 100%;
+  padding: 12px 16px;
+  margin-top: 16px;
+  background: #111;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.connect-wallet-btn:hover { background: #333; }

@@ -1,0 +1,38 @@
+{
+  "name": "@fig/stake-widget",
+  "version": "0.1.0",
+  "description": "Embeddable Figment Solana staking widget",
+  "type": "module",
+  "main": "./dist/stake-widget.js",
+  "module": "./dist/stake-widget.js",
+  "exports": {
+    ".": {
+      "import": "./dist/stake-widget.js"
+    },
+    "./styles.css": "./dist/stake-widget.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch",
+    "pack": "npm run build && npm pack"
+  },
+  "peerDependencies": {
+    "@solana/wallet-adapter-react": "^0.15.0",
+    "@solana/wallet-adapter-react-ui": "^0.9.0",
+    "@solana/web3.js": "^1.95.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "devDependencies": {
+    "@solana/wallet-adapter-react": "^0.15.35",
+    "@solana/wallet-adapter-react-ui": "^0.9.35",
+    "@solana/web3.js": "^1.95.4",
+    "@vitejs/plugin-react": "^4.3.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "vite": "^5.4.21"
+  }
+}
