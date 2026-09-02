@@ -10,9 +10,10 @@ function App() {
   const rpcUrl = import.meta.env.VITE_SOLANA_RPC_URL?.trim() || undefined;
   const voteAccount = import.meta.env.VITE_FIGMENT_VOTE_ACCOUNT || undefined;
   const apiKey = import.meta.env.VITE_FIGMENT_API_KEY || null;
-  const apiBaseUrl = import.meta.env.DEV
-    ? '/figment-api'
-    : 'https://api.figment.io';
+  // Same-origin proxy path avoids CORS in both Vite dev and Vercel production.
+  // Dev: vite.config.js proxies /figment-api → api.figment.io
+  // Prod: vercel.json rewrites /figment-api → api.figment.io
+  const apiBaseUrl = import.meta.env.VITE_FIGMENT_API_BASE || '/figment-api';
 
   const wallets = useMemo(
     () => [new PhantomWalletAdapter(), new SolflareWalletAdapter()],
