@@ -32,3 +32,12 @@ Open http://localhost:5174
 ```json
 "@fig/stake-widget": "file:../figapp/packages/stake-widget"
 ```
+
+## Figment API / CORS
+
+The app calls Figment via same-origin `/figment-api` (not `https://api.figment.io` from the browser).
+
+- **Local:** `vite.config.js` proxies `/figment-api` → `https://api.figment.io`
+- **Vercel:** repo-root `vercel.json` rewrites `/figment-api/:path*` → `https://api.figment.io/:path*`
+
+Override with `VITE_FIGMENT_API_BASE` only if you need a different base.
