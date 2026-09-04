@@ -1,16 +1,21 @@
 /**
  * Figment API BFF — keeps FIGMENT_API_KEY on the server.
- * Local: `npm run dev` (Express listen). Vercel: serverless via api/index.js.
+ * Local: `npm run dev:api` (Express listen). Vercel: this file is the /api serverless entry.
  *
  * Env:
  *   FIGMENT_API_KEY   (required, Secret on Vercel)
- *   ALLOWED_ORIGINS   (optional) comma-separated browser origins for CORS
+ *   ALLOWED_ORIGINS   (optional) comma-separated CORS origins (same-origin prod often unused)
  *   PORT              (optional, local only; default 3000)
  */
 
-require('dotenv').config();
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import dotenv from 'dotenv';
+import express from 'express';
 
-const express = require('express');
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
+
 
 const FIGMENT_API_BASE = 'https://api.figment.io';
 
@@ -83,7 +88,6 @@ app.use('/api/figment', async (req, res) => {
     });
   }
 
-  // Mounted at /api/figment → path is e.g. /solana/stakes
   const segments = req.path.split('/').filter(Boolean);
 
   if (!segments.length || !isAllowedPath(segments)) {
@@ -136,9 +140,9 @@ app.use((req, res) => {
 if (!process.env.VERCEL) {
   const port = process.env.PORT || 3000;
   app.listen(port, () => {
-    console.log(`Local server is running on port ${port}`);
+    console.log(`Local API server is running on port ${port}`);
   });
 }
 
 // Vercel のサーバーレス関数としてエクスポート
-module.exports = app;
+export default app;

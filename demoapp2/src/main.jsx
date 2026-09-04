@@ -11,8 +11,8 @@ function App() {
   const voteAccount = import.meta.env.VITE_FIGMENT_VOTE_ACCOUNT || undefined;
   // Key stays on the api BFF — do not send a client apiKey
   const apiKey = null;
-  const apiBaseUrl =
-    import.meta.env.VITE_FIGMENT_API_BASE || 'http://localhost:3000/api/figment';
+  // Same-origin BFF (Vite proxies locally; Vercel serves api/index.js)
+  const apiBaseUrl = import.meta.env.VITE_FIGMENT_API_BASE || '/api/figment';
 
   const wallets = useMemo(
     () => [new PhantomWalletAdapter(), new SolflareWalletAdapter()],

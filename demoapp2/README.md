@@ -1,24 +1,28 @@
 # demoapp2
 
-Host app that embeds `@fig/stake-widget` and talks to the sibling [`api`](../api/README.md) BFF so `FIGMENT_API_KEY` never reaches the browser.
+Host app for `@fig/stake-widget` with an embedded **Figment BFF** under `api/`.
+One Vercel project serves the static app and the serverless API (same origin).
 
-`demoapp` is unchanged (legacy client-key / Vite proxy mode). Use this app for key-hiding mode.
+```text
+Browser
+  →  /api/figment/solana/...
+  →  api/index.js (adds FIGMENT_API_KEY)
+  →  https://api.figment.io/solana/...
+```
 
-## Setup
+## Local setup
 
 ```bash
-# 1) API BFF
-cd api
-cp .env.example .env   # FIGMENT_API_KEY, ALLOWED_ORIGINS includes :5175
-npm install
-npm run dev            # http://localhost:3000
-
-# 2) This app (another terminal)
 cd figapp/packages/stake-widget && npm install && cd -
 cd demoapp2
-cp .env.example .env
+cp .env.example .env   # set FIGMENT_API_KEY
 npm install
 npm run build:widget
+
+# terminal 1 — BFF
+npm run dev:api        # http://localhost:3000
+
+# terminal 2 — Vite (proxies /api/figment → :3000)
 npm run dev            # http://localhost:5175
 ```
 
@@ -26,19 +30,46 @@ npm run dev            # http://localhost:5175
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Start Vite on port **5175** |
+| `npm run dev:api` | Express BFF on port 3000 (`!VERCEL`) |
+| `npm run dev` | Vite on 5175 with `/api/figment` proxy |
 | `npm run build:widget` | Build `@fig/stake-widget` |
 | `npm run build` | Build widget, then this app |
 
-## Figment API
+## Vercel (single project)
 
-Defaults to `http://localhost:3000/api/figment` with **no** client API key.
+1. **Root Directory** = `demoapp2`
+2. **Install Command** (include widget + this app):
 
 ```bash
-# demoapp2/.env
-VITE_FIGMENT_API_BASE=http://localhost:3000/api/figment
-# production:
-# VITE_FIGMENT_API_BASE=https://<api-deployment>/api/figment
+npm install --include=dev && npm install --prefix ../figapp/packages/stake-widget --include=dev
 ```
 
-Ensure `api` has `ALLOWED_ORIGINS` including `http://localhost:5175` (and your production origin).
+If Root is `demoapp2`, the sibling widget path is `../figapp/packages/stake-widget`.
+
+Alternatively set Root to `./` (repo root) and use:
+
+| Setting | Value |
+|---------|--------|
+| Install | `npm install --prefix demoapp2 --include=dev && npm install --prefix figapp/packages/stake-widget --include=dev` |
+| Build | `cd figapp/packages/stake-widget && ./node_modules/.bin/vite build && cd ../../.. && cd demoapp2 && ./node_modules/.bin/vite build` |
+| Output | `demoapp2/dist` |
+
+With **Root = `demoapp2`**:
+
+| Setting | Value |
+|---------|--------|
+| Build | `npm run build --prefix ../figapp/packages/stake-widget && npx vite build` |
+| Output | `dist` |
+
+3. **Environment Variables**
+   - `FIGMENT_API_KEY` → **Secret**
+   - `VITE_SOLANA_CLUSTER` → `devnet` (optional)
+   - Do **not** set `VITE_FIGMENT_API_KEY`
+   - `VITE_FIGMENT_API_BASE` optional; default in code is `/api/figment`
+
+`vercel.json` rewrites `/api/figment/*` to the Express serverless entry at `/api`.
+
+## Security
+
+- Never commit `.env` or real keys.
+- Prefer rotating the Figment key if it was ever shipped as `VITE_FIGMENT_API_KEY`.

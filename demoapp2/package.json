@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:api": "node api/index.js",
     "build": "npm run build:widget && vite build",
     "build:widget": "npm run build --prefix ../figapp/packages/stake-widget",
     "build:app": "vite build",
@@ -17,11 +18,16 @@
     "@solana/wallet-adapter-react-ui": "^0.9.35",
     "@solana/wallet-adapter-wallets": "^0.19.32",
     "@solana/web3.js": "^1.95.4",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
     "vite": "^5.4.21"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

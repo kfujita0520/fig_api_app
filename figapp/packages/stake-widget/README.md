@@ -50,8 +50,8 @@ import '@fig/stake-widget/styles.css';
 |------|---------|-------------|
 | `cluster` | `devnet` | `devnet` / `mainnet-beta` / `testnet` |
 | `voteAccount` | Figment devnet default | Validator vote account |
-| `apiBaseUrl` | `https://api.figment.io` | Figment API base (use a proxy to avoid CORS) |
-| `apiKey` | `null` | Figment API key (prefer a BFF in production) |
+| `apiBaseUrl` | `/api/figment` | Figment API base (prefer `demoapp2/api` BFF) |
+| `apiKey` | `null` | Optional client key for legacy mode. Prefer server-side `FIGMENT_API_KEY`. |
 | `showHeader` | `true` | Show header above the card |
 
 ## Pack (tarball)
