@@ -1,10 +1,11 @@
 /**
  * Figment Solana Stake API client.
  * Configure via setFigmentClientConfig({ apiBaseUrl, apiKey }) from the host widget.
+ * Prefer a BFF base (e.g. /api/figment) and omit apiKey so the key stays on the server.
  * @see https://docs.figment.io/reference/overview-1
  */
 
-const DEFAULT_API_BASE = 'https://api.figment.io';
+const DEFAULT_API_BASE = '/api/figment';
 
 /** @type {{ apiBaseUrl: string, apiKey: string | null }} */
 let clientConfig = {
@@ -39,14 +40,14 @@ function getApiKey() {
   return clientConfig.apiKey;
 }
 
-function requireApiKey() {
+/** Build headers; x-api-key only when a client key is set (legacy). BFF mode omits it. */
+function buildHeaders({ json = false } = {}) {
+  /** @type {Record<string, string>} */
+  const headers = {};
+  if (json) headers['Content-Type'] = 'application/json';
   const apiKey = getApiKey();
-  if (!apiKey) {
-    throw new Error(
-      'Figment API key is not configured. Pass apiKey to FigmentStakeWidget (or setFigmentClientConfig).'
-    );
-  }
-  return apiKey;
+  if (apiKey) headers['x-api-key'] = apiKey;
+  return headers;
 }
 
 /**
@@ -65,13 +66,9 @@ export function clusterToNetwork(cluster) {
  * @param {{ fundingAccount: string, voteAccount: string, amountSol: number, network: "mainnet"|"devnet"|"testnet" }} params
  */
 export async function createStakeTransaction({ fundingAccount, voteAccount, amountSol, network }) {
-  const apiKey = requireApiKey();
   const res = await fetch(`${getApiBase()}/solana/stake`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-    },
+    headers: buildHeaders({ json: true }),
     body: JSON.stringify({
       funding_account: fundingAccount,
       vote_account: voteAccount,
@@ -103,15 +100,11 @@ export async function createStakeTransaction({ fundingAccount, voteAccount, amou
  * @param {{ signedPayloadHex: string, network: "mainnet"|"devnet"|"testnet" }} params
  */
 export async function broadcastSignedTransaction({ signedPayloadHex, network }) {
-  const apiKey = requireApiKey();
   const payload = signedPayloadHex.replace(/^0x/i, '');
 
   const res = await fetch(`${getApiBase()}/solana/broadcast`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-    },
+    headers: buildHeaders({ json: true }),
     body: JSON.stringify({
       transaction_payload: payload,
       network,
@@ -136,13 +129,9 @@ export async function broadcastSignedTransaction({ signedPayloadHex, network }) 
  * @param {{ stakeAccount: string, network: "mainnet"|"devnet"|"testnet" }} params
  */
 export async function createUndelegateTransaction({ stakeAccount, network }) {
-  const apiKey = requireApiKey();
   const res = await fetch(`${getApiBase()}/solana/undelegate`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-    },
+    headers: buildHeaders({ json: true }),
     body: JSON.stringify({
       stake_account: stakeAccount,
       network,
@@ -169,13 +158,9 @@ export async function createUndelegateTransaction({ stakeAccount, network }) {
  * @param {{ stakeAccount: string, recipientAccount: string, amountSol: number, network: "mainnet"|"devnet"|"testnet" }} params
  */
 export async function createWithdrawTransaction({ stakeAccount, recipientAccount, amountSol, network }) {
-  const apiKey = requireApiKey();
   const res = await fetch(`${getApiBase()}/solana/withdraw`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-    },
+    headers: buildHeaders({ json: true }),
     body: JSON.stringify({
       stake_account: stakeAccount,
       recipient_account: recipientAccount,
@@ -204,14 +189,13 @@ export async function createWithdrawTransaction({ stakeAccount, recipientAccount
  * @param {{ network: "mainnet"|"devnet"|"testnet", stakeAuthority?: string }} params
  */
 export async function getStakes({ network, stakeAuthority }) {
-  const apiKey = requireApiKey();
   const params = new URLSearchParams({ network });
   if (stakeAuthority) params.set('stake_authority', stakeAuthority);
   const url = `${getApiBase()}/solana/stakes?${params.toString()}`;
 
   const res = await fetch(url, {
     method: 'GET',
-    headers: { 'x-api-key': apiKey },
+    headers: buildHeaders(),
   });
 
   const body = await res.json().catch(() => ({}));

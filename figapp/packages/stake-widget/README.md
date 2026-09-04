@@ -44,6 +44,9 @@ import '@fig/stake-widget/styles.css';
 </FigmentStakeProviders>
 ```
 
+Prefer a same-origin BFF (`demoapp2/api` → `/api/figment`) and omit `apiKey` so `FIGMENT_API_KEY` never ships to the browser.
+Pass `apiKey` only for legacy direct Figment / Vite-proxy mode.
+
 ### Props
 
 | Prop | Default | Description |
@@ -51,7 +54,7 @@ import '@fig/stake-widget/styles.css';
 | `cluster` | `devnet` | `devnet` / `mainnet-beta` / `testnet` |
 | `voteAccount` | Figment devnet default | Validator vote account |
 | `apiBaseUrl` | `/api/figment` | Figment API base (prefer `demoapp2/api` BFF) |
-| `apiKey` | `null` | Optional client key for legacy mode. Prefer server-side `FIGMENT_API_KEY`. |
+| `apiKey` | `null` | Optional. Omit when using a BFF; required only for legacy client-key mode. |
 | `showHeader` | `true` | Show header above the card |
 
 ## Pack (tarball)

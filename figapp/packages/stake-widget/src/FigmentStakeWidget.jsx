@@ -631,7 +631,7 @@ function WalletModal({ isOpen, onClose, publicKey, balanceSol, onDisconnect, clu
 export function FigmentStakeWidget({
   cluster = 'devnet',
   voteAccount,
-  apiBaseUrl = 'https://api.figment.io',
+  apiBaseUrl = '/api/figment',
   apiKey = null,
   showHeader = true,
 }) {
