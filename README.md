@@ -2,44 +2,31 @@
 
 ## Overview
 
-This repository demonstrates how to package and consume reusable UI components for Figment applications. It contains a reusable UI library, example applications, and a standalone web application for API testing and development.
+This repository demonstrates how to package and consume reusable UI components for Figment applications. It contains a reusable UI library, a host that consumes the package, and a standalone app with the UI source inlined.
 
 ## Repository Structure
 
-### `figapp/`
+### `widget/`
 
-Contains the reusable UI components.
+Reusable UI library (`packages/stake-widget`). Package this as a **tarball** (`.tgz`) when integrating into other applications as `@fig/stake-widget`.
 
-The components in this folder can be packaged as a **tarball** (`.tgz`) and distributed for use in other applications. This is the package that should be published or shared when integrating the UI into another project.
+### `widgetDemo/`
 
-### `demo/`
+Vite host that **imports** `@fig/stake-widget` and talks to a same-origin BFF (`FIGMENT_API_KEY`, optional `SOLANA_RPC_URL`). Preferred demo for the packaged-widget workflow.
 
-Demonstrates how to consume the packaged UI components.
+### `standAppDemo/`
 
-This application installs the **tarball package** generated from `figapp` and shows how it can be integrated into an external application, simulating the real-world consumption workflow.
-
-### `demoapp/`
-
-Provides the same functionality as `demo`, but imports the components **directly from `figapp`** instead of using the packaged tarball.
-
-This setup is intended for development, making it much easier to verify changes without rebuilding and reinstalling the tarball after every modification.
-
-### `figapp-ract/`
-
-A simple standalone web application for interacting with the API.
-
-This project is useful for testing API endpoints independently of the UI component package and for quickly validating backend functionality during development.
+Self-contained sample: the stake UI lives under `src/stake-widget/` (no `@fig/stake-widget` dependency), plus the same BFF pattern. Use this when you do **not** want the widget package — copy the folder and run it as a normal app.
 
 ## Recommended Workflow
 
-- Use **`demoapp`** during development for rapid iteration on UI components.
-- Build and package **`figapp`** as a tarball when validating the distribution package.
-- Use **`demo`** to verify that the packaged tarball installs and behaves correctly in a consumer application.
-- Use **`figapp-react`** for standalone API testing and development.
+- Use **`widgetDemo`** when consuming `@fig/stake-widget` as a library.
+- Build and pack **`widget/packages/stake-widget`** when distributing the package.
+- Use **`standAppDemo`** as a copy-paste app that includes the UI source.
 
 ## Purpose
 
 This repository serves as both:
 
 - A development environment for reusable UI components.
-- A reference implementation showing how those components are packaged and consumed by downstream applications.
+- A reference implementation showing how those components are packaged and how they can be inlined instead.

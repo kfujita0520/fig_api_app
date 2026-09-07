@@ -1,8 +1,0 @@
-{
-  "rewrites": [
-    {
-      "source": "/figment-api/:path*",
-      "destination": "https://api.figment.io/:path*"
-    }
-  ]
-}

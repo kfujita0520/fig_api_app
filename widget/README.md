@@ -1,0 +1,26 @@
+# widget
+
+Libraries for the embeddable Figment Solana staking widget.
+
+## Packages
+
+| Path | Description |
+|------|-------------|
+| `packages/stake-widget` | Library: `import { FigmentStakeWidget } from '@fig/stake-widget'` |
+
+## Host app
+
+| Path | Description |
+|------|-------------|
+| `../widgetDemo` | Vite host that consumes the widget via `file:` (+ BFF under `api/`) |
+| `../standAppDemo` | Self-contained app with UI source inlined (no package) |
+
+## Commands
+
+```bash
+# Build the library
+cd packages/stake-widget && npm install && npm run build
+
+# Or from the host app
+cd ../widgetDemo && npm run build:widget && npm run dev
+```
