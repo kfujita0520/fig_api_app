@@ -6,25 +6,23 @@ This repository demonstrates how to package and consume reusable UI components f
 
 ## Repository Structure
 
-### `figapp/`
+### `widget/`
 
-Contains the reusable UI components.
+Contains the reusable UI components (e.g. `packages/stake-widget`).
 
 The components in this folder can be packaged as a **tarball** (`.tgz`) and distributed for use in other applications. This is the package that should be published or shared when integrating the UI into another project.
+
+### `demoWidget/`
+
+Vite host that embeds `@fig/stake-widget` with a same-origin BFF under `api/` (`FIGMENT_API_KEY`, optional `SOLANA_RPC_URL`). Preferred demo for key-hiding mode.
 
 ### `demo/`
 
 Demonstrates how to consume the packaged UI components.
 
-This application installs the **tarball package** generated from `figapp` and shows how it can be integrated into an external application, simulating the real-world consumption workflow.
+This application installs the **tarball package** generated from `widget` and shows how it can be integrated into an external application, simulating the real-world consumption workflow.
 
-### `demoapp/`
-
-Provides the same functionality as `demo`, but imports the components **directly from `figapp`** instead of using the packaged tarball.
-
-This setup is intended for development, making it much easier to verify changes without rebuilding and reinstalling the tarball after every modification.
-
-### `figapp-ract/`
+### `figapp-react/`
 
 A simple standalone web application for interacting with the API.
 
@@ -32,8 +30,8 @@ This project is useful for testing API endpoints independently of the UI compone
 
 ## Recommended Workflow
 
-- Use **`demoapp`** during development for rapid iteration on UI components.
-- Build and package **`figapp`** as a tarball when validating the distribution package.
+- Use **`demoWidget`** during development for the BFF-backed widget host.
+- Build and package **`widget/packages/stake-widget`** as a tarball when validating the distribution package.
 - Use **`demo`** to verify that the packaged tarball installs and behaves correctly in a consumer application.
 - Use **`figapp-react`** for standalone API testing and development.
 

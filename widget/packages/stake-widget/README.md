@@ -2,12 +2,12 @@
 
 Embeddable Figment Solana staking widget (migrated from `figapp-react`).
 
-Figment API calls go to a **host BFF** (default `/api/figment`). The widget never accepts or sends an API key — keep `FIGMENT_API_KEY` on the server only.
+Figment API calls go to a **host BFF** (default `/api/figment`). Activity history goes to `/api/solana/activity` (server uses `SOLANA_RPC_URL`). The widget never accepts API keys or private RPC URLs.
 
 ## Build
 
 ```bash
-cd figapp/packages/stake-widget
+cd widget/packages/stake-widget
 npm install
 npm run build
 ```
@@ -15,7 +15,7 @@ npm run build
 Or from the host app:
 
 ```bash
-cd demoapp2
+cd demoWidget
 npm run build:widget
 ```
 
@@ -26,7 +26,7 @@ Output: `dist/stake-widget.js`, `dist/stake-widget.css`
 ```json
 {
   "dependencies": {
-    "@fig/stake-widget": "file:../figapp/packages/stake-widget"
+    "@fig/stake-widget": "file:../widget/packages/stake-widget"
   }
 }
 ```
@@ -35,7 +35,7 @@ Output: `dist/stake-widget.js`, `dist/stake-widget.css`
 import { FigmentStakeProviders, FigmentStakeWidget } from '@fig/stake-widget';
 import '@fig/stake-widget/styles.css';
 
-<FigmentStakeProviders cluster="devnet" endpoint={rpcUrl} wallets={wallets}>
+<FigmentStakeProviders cluster="devnet" wallets={wallets}>
   <FigmentStakeWidget
     cluster="devnet"
     voteAccount="..."
@@ -45,7 +45,7 @@ import '@fig/stake-widget/styles.css';
 </FigmentStakeProviders>
 ```
 
-See `demoapp2/api` for a sample BFF that adds `FIGMENT_API_KEY` server-side.
+See `demoWidget/api` for a sample BFF that adds `FIGMENT_API_KEY` / `SOLANA_RPC_URL` server-side.
 
 ### Props
 
@@ -53,12 +53,12 @@ See `demoapp2/api` for a sample BFF that adds `FIGMENT_API_KEY` server-side.
 |------|---------|-------------|
 | `cluster` | `devnet` | `devnet` / `mainnet-beta` / `testnet` |
 | `voteAccount` | Figment devnet default | Validator vote account |
-| `apiBaseUrl` | `/api/figment` | Host BFF base URL |
+| `apiBaseUrl` | `/api/figment` | Host Figment BFF base URL |
 | `showHeader` | `true` | Show header above the card |
 
 ## Pack (tarball)
 
 ```bash
 npm run pack
-# or: cd demoapp2 && npm run pack:widget
+# or: cd demoWidget && npm run pack:widget
 ```

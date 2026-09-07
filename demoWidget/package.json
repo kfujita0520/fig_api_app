@@ -1,5 +1,5 @@
 {
-  "name": "demoapp2",
+  "name": "demoWidget",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -7,13 +7,13 @@
     "dev": "vite",
     "dev:api": "node api/index.js",
     "build": "npm run build:widget && vite build",
-    "build:widget": "npm run build --prefix ../figapp/packages/stake-widget",
+    "build:widget": "npm run build --prefix ../widget/packages/stake-widget",
     "build:app": "vite build",
     "preview": "vite preview",
-    "pack:widget": "npm run pack --prefix ../figapp/packages/stake-widget"
+    "pack:widget": "npm run pack --prefix ../widget/packages/stake-widget"
   },
   "dependencies": {
-    "@fig/stake-widget": "file:../figapp/packages/stake-widget",
+    "@fig/stake-widget": "file:../widget/packages/stake-widget",
     "@solana/wallet-adapter-react": "^0.15.35",
     "@solana/wallet-adapter-react-ui": "^0.9.35",
     "@solana/wallet-adapter-wallets": "^0.19.32",

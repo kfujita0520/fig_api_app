@@ -4,12 +4,12 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const widgetRoot = path.resolve(__dirname, '../figapp/packages/stake-widget');
+const widgetRoot = path.resolve(__dirname, '../widget/packages/stake-widget');
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    // Use widget source in dev so rebuild/cache of dist cannot serve stale API-key checks
+    // Use widget source in dev so rebuild/cache of dist cannot serve stale code
     alias: {
       '@fig/stake-widget/styles.css': path.join(widgetRoot, 'src/styles.css'),
       '@fig/stake-widget': path.join(widgetRoot, 'src/index.js'),
@@ -18,8 +18,12 @@ export default defineConfig({
   server: {
     port: 5175,
     proxy: {
-      // Same-origin /api/figment → local Express BFF (npm run dev:api)
+      // Same-origin BFF → local Express (npm run dev:api)
       '/api/figment': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+      '/api/solana': {
         target: 'http://localhost:3000',
         changeOrigin: true,
       },
