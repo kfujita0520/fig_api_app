@@ -1,30 +1,23 @@
 /**
  * Figment Solana Stake API client.
- * Configure via setFigmentClientConfig({ apiBaseUrl, apiKey }) from the host widget.
- * Prefer a BFF base (e.g. /api/figment) and omit apiKey so the key stays on the server.
+ * Configure via setFigmentClientConfig({ apiBaseUrl }) from the host widget.
+ * Calls a host BFF (default /api/figment); never send API keys from the browser.
  * @see https://docs.figment.io/reference/overview-1
  */
 
 const DEFAULT_API_BASE = '/api/figment';
 
-/** @type {{ apiBaseUrl: string, apiKey: string | null }} */
+/** @type {{ apiBaseUrl: string }} */
 let clientConfig = {
   apiBaseUrl: DEFAULT_API_BASE,
-  apiKey: null,
 };
 
 /**
- * @param {{ apiBaseUrl?: string, apiKey?: string | null }} next
+ * @param {{ apiBaseUrl?: string }} next
  */
 export function setFigmentClientConfig(next = {}) {
   clientConfig = {
     apiBaseUrl: next.apiBaseUrl?.trim() || clientConfig.apiBaseUrl || DEFAULT_API_BASE,
-    apiKey:
-      next.apiKey === undefined
-        ? clientConfig.apiKey
-        : typeof next.apiKey === 'string'
-          ? next.apiKey.trim() || null
-          : null,
   };
 }
 
@@ -36,17 +29,10 @@ function getApiBase() {
   return clientConfig.apiBaseUrl || DEFAULT_API_BASE;
 }
 
-function getApiKey() {
-  return clientConfig.apiKey;
-}
-
-/** Build headers; x-api-key only when a client key is set (legacy). BFF mode omits it. */
 function buildHeaders({ json = false } = {}) {
   /** @type {Record<string, string>} */
   const headers = {};
   if (json) headers['Content-Type'] = 'application/json';
-  const apiKey = getApiKey();
-  if (apiKey) headers['x-api-key'] = apiKey;
   return headers;
 }
 

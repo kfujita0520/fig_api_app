@@ -2,6 +2,8 @@
 
 Embeddable Figment Solana staking widget (migrated from `figapp-react`).
 
+Figment API calls go to a **host BFF** (default `/api/figment`). The widget never accepts or sends an API key — keep `FIGMENT_API_KEY` on the server only.
+
 ## Build
 
 ```bash
@@ -13,7 +15,7 @@ npm run build
 Or from the host app:
 
 ```bash
-cd demoapp
+cd demoapp2
 npm run build:widget
 ```
 
@@ -37,15 +39,13 @@ import '@fig/stake-widget/styles.css';
   <FigmentStakeWidget
     cluster="devnet"
     voteAccount="..."
-    apiBaseUrl="/figment-api"
-    apiKey={apiKey}
+    apiBaseUrl="/api/figment"
     showHeader={true}
   />
 </FigmentStakeProviders>
 ```
 
-Prefer a same-origin BFF (`demoapp2/api` → `/api/figment`) and omit `apiKey` so `FIGMENT_API_KEY` never ships to the browser.
-Pass `apiKey` only for legacy direct Figment / Vite-proxy mode.
+See `demoapp2/api` for a sample BFF that adds `FIGMENT_API_KEY` server-side.
 
 ### Props
 
@@ -53,13 +53,12 @@ Pass `apiKey` only for legacy direct Figment / Vite-proxy mode.
 |------|---------|-------------|
 | `cluster` | `devnet` | `devnet` / `mainnet-beta` / `testnet` |
 | `voteAccount` | Figment devnet default | Validator vote account |
-| `apiBaseUrl` | `/api/figment` | Figment API base (prefer `demoapp2/api` BFF) |
-| `apiKey` | `null` | Optional. Omit when using a BFF; required only for legacy client-key mode. |
+| `apiBaseUrl` | `/api/figment` | Host BFF base URL |
 | `showHeader` | `true` | Show header above the card |
 
 ## Pack (tarball)
 
 ```bash
 npm run pack
-# or: cd demoapp && npm run pack:widget
+# or: cd demoapp2 && npm run pack:widget
 ```

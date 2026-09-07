@@ -624,7 +624,6 @@ function WalletModal({ isOpen, onClose, publicKey, balanceSol, onDisconnect, clu
  *   cluster?: string,
  *   voteAccount?: string,
  *   apiBaseUrl?: string,
- *   apiKey?: string | null,
  *   showHeader?: boolean,
  * }} props
  */
@@ -632,7 +631,6 @@ export function FigmentStakeWidget({
   cluster = 'devnet',
   voteAccount,
   apiBaseUrl = '/api/figment',
-  apiKey = null,
   showHeader = true,
 }) {
   const [activeTab, setActiveTab] = useState('stake');
@@ -649,8 +647,8 @@ export function FigmentStakeWidget({
   const shortAddress = publicKey ? shortenAddress(publicKey.toBase58()) : '';
 
   useEffect(() => {
-    setFigmentClientConfig({ apiBaseUrl, apiKey });
-  }, [apiBaseUrl, apiKey]);
+    setFigmentClientConfig({ apiBaseUrl });
+  }, [apiBaseUrl]);
 
   useEffect(() => {
     if (!publicKey || !connection) return;

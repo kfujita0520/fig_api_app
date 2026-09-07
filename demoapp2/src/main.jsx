@@ -9,7 +9,7 @@ function App() {
   const cluster = import.meta.env.VITE_SOLANA_CLUSTER || 'devnet';
   const rpcUrl = import.meta.env.VITE_SOLANA_RPC_URL?.trim() || undefined;
   const voteAccount = import.meta.env.VITE_FIGMENT_VOTE_ACCOUNT || undefined;
-  // Same-origin BFF (Vite proxies locally; Vercel serves api/index.js). No client apiKey.
+  // Same-origin BFF (Vite proxies locally; Vercel serves api/index.js).
   const apiBaseUrl = import.meta.env.VITE_FIGMENT_API_BASE || '/api/figment';
 
   const wallets = useMemo(
