@@ -9,9 +9,7 @@ function App() {
   const cluster = import.meta.env.VITE_SOLANA_CLUSTER || 'devnet';
   const rpcUrl = import.meta.env.VITE_SOLANA_RPC_URL?.trim() || undefined;
   const voteAccount = import.meta.env.VITE_FIGMENT_VOTE_ACCOUNT || undefined;
-  // Key stays on the api BFF — do not send a client apiKey
-  const apiKey = null;
-  // Same-origin BFF (Vite proxies locally; Vercel serves api/index.js)
+  // Same-origin BFF (Vite proxies locally; Vercel serves api/index.js). No client apiKey.
   const apiBaseUrl = import.meta.env.VITE_FIGMENT_API_BASE || '/api/figment';
 
   const wallets = useMemo(
@@ -30,7 +28,6 @@ function App() {
           cluster={cluster}
           voteAccount={voteAccount}
           apiBaseUrl={apiBaseUrl}
-          apiKey={apiKey}
         />
       </FigmentStakeProviders>
     </div>
