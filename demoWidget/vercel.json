@@ -4,6 +4,10 @@
     {
       "source": "/api/figment/:path*",
       "destination": "/api"
+    },
+    {
+      "source": "/api/solana/:path*",
+      "destination": "/api"
     }
   ]
 }

@@ -4,6 +4,7 @@
  *
  * Env:
  *   FIGMENT_API_KEY   (required, Secret on Vercel)
+ *   SOLANA_RPC_URL    (optional) Activity gap-fill; falls back to public cluster RPC
  *   ALLOWED_ORIGINS   (optional) comma-separated CORS origins (same-origin prod often unused)
  *   PORT              (optional, local only; default 3000)
  */
@@ -12,6 +13,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import express from 'express';
+import { buildStakeActivity } from './lib/solanaActivity.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
@@ -127,6 +129,47 @@ app.use('/api/figment', async (req, res) => {
     return res.status(502).json({
       error: {
         message: err?.message || 'Failed to reach Figment API',
+      },
+    });
+  }
+});
+
+app.get('/api/solana/activity', async (req, res) => {
+  const apiKey = process.env.FIGMENT_API_KEY?.trim();
+  if (!apiKey) {
+    return res.status(500).json({
+      error: {
+        message:
+          'FIGMENT_API_KEY is not configured on the server. Set it in .env (local) or Vercel Environment Variables (Secret).',
+      },
+    });
+  }
+
+  const networkRaw = String(req.query.network || 'devnet').toLowerCase();
+  const network = networkRaw === 'mainnet-beta' ? 'mainnet' : networkRaw;
+  if (!['mainnet', 'devnet', 'testnet'].includes(network)) {
+    return res.status(400).json({ error: { message: 'Invalid network' } });
+  }
+
+  const stakeAuthority = String(
+    req.query.stake_authority || req.query.stakeAuthority || ''
+  ).trim();
+  if (!stakeAuthority) {
+    return res.status(400).json({ error: { message: 'stake_authority is required' } });
+  }
+
+  try {
+    const result = await buildStakeActivity({
+      apiKey,
+      network,
+      stakeAuthority,
+      rpcUrl: process.env.SOLANA_RPC_URL,
+    });
+    return res.status(200).json(result);
+  } catch (err) {
+    return res.status(502).json({
+      error: {
+        message: err?.message || 'Failed to load activity',
       },
     });
   }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { VersionedTransaction } from '@solana/web3.js';
@@ -11,7 +11,7 @@ import {
   createWithdrawTransaction,
   setFigmentClientConfig,
 } from './figmentStake.js';
-import { fetchStakeActivity, mapActivityToUI } from './stakeActivity.js';
+import { fetchStakeActivity, resolveActivityApiUrl } from './stakeActivity.js';
 import './styles.css';
 
 const TABS = ['stake', 'rewards', 'activity'];
@@ -453,29 +453,37 @@ function RewardsPanel({ onBalanceRefetch, cluster }) {
   );
 }
 
-function ActivityPanel({ connection, publicKey, isActive, refetchKey, cluster }) {
+function ActivityPanel({ activityApiUrl, publicKey, isActive, refetchKey, cluster }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const cacheRef = useRef({ key: '', items: [] });
 
   useEffect(() => {
-    if (!isActive || !connection || !publicKey) {
+    if (!isActive) return;
+    if (!publicKey) {
       setItems([]);
+      cacheRef.current = { key: '', items: [] };
+      return;
+    }
+    const key = `${publicKey.toBase58()}:${cluster || 'devnet'}:${refetchKey}`;
+    if (cacheRef.current.key === key) {
+      setItems(cacheRef.current.items);
+      setLoading(false);
       return;
     }
     let cancelled = false;
     setLoading(true);
     setError('');
-    const network = clusterToNetwork(cluster || 'devnet');
-    getStakes({ network, stakeAuthority: publicKey.toBase58() })
-      .catch(() => [])
-      .then(async (stakes) => {
-        const stakeAccounts = stakes.map((stake) => stake.stake_account).filter(Boolean);
-        const entries = await fetchStakeActivity(connection, publicKey, stakeAccounts);
-        return { entries, stakes };
-      })
-      .then(({ entries, stakes }) => {
-        if (!cancelled) setItems(mapActivityToUI(entries, stakes));
+    fetchStakeActivity({
+      activityApiUrl,
+      stakeAuthority: publicKey.toBase58(),
+      cluster,
+    })
+      .then((rows) => {
+        if (cancelled) return;
+        cacheRef.current = { key, items: rows };
+        setItems(rows);
       })
       .catch((e) => {
         if (!cancelled) {
@@ -487,7 +495,7 @@ function ActivityPanel({ connection, publicKey, isActive, refetchKey, cluster })
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [connection, publicKey, isActive, refetchKey, cluster]);
+  }, [activityApiUrl, publicKey, isActive, refetchKey, cluster]);
 
   const clusterParam = cluster === 'mainnet-beta' ? '' : `?cluster=${cluster || 'devnet'}`;
 
@@ -624,6 +632,7 @@ function WalletModal({ isOpen, onClose, publicKey, balanceSol, onDisconnect, clu
  *   cluster?: string,
  *   voteAccount?: string,
  *   apiBaseUrl?: string,
+ *   activityApiUrl?: string,
  *   showHeader?: boolean,
  * }} props
  */
@@ -631,8 +640,13 @@ export function FigmentStakeWidget({
   cluster = 'devnet',
   voteAccount,
   apiBaseUrl = '/api/figment',
+  activityApiUrl,
   showHeader = true,
 }) {
+  const resolvedActivityApiUrl = useMemo(
+    () => resolveActivityApiUrl(apiBaseUrl, activityApiUrl),
+    [apiBaseUrl, activityApiUrl]
+  );
   const [activeTab, setActiveTab] = useState('stake');
   const [modalOpen, setModalOpen] = useState(false);
   const [balance, setBalance] = useState(null);
@@ -759,7 +773,7 @@ export function FigmentStakeWidget({
             role="tabpanel"
           >
             <ActivityPanel
-              connection={connection}
+              activityApiUrl={resolvedActivityApiUrl}
               publicKey={publicKey}
               isActive={activeTab === 'activity'}
               refetchKey={activityRefetchKey}

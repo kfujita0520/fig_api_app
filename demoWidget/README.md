@@ -6,7 +6,8 @@ One Vercel project serves the static app and the serverless API (same origin).
 ```text
 Browser
   →  /api/figment/solana/...     (FIGMENT_API_KEY on server)
-  →  /api/solana/activity        (SOLANA_RPC_URL on server)
+  →  /api/solana/activity        (Figment activities + stakes first;
+                                  SOLANA_RPC_URL only to fill gaps)
 ```
 
 ## Local setup

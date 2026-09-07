@@ -2,7 +2,7 @@
 
 Embeddable Figment Solana staking widget (migrated from `figapp-react`).
 
-Figment API calls go to a **host BFF** (default `/api/figment`). Activity history goes to `/api/solana/activity` (server uses `SOLANA_RPC_URL`). The widget never accepts API keys or private RPC URLs.
+Figment API calls go to a **host BFF** (default `/api/figment`). Activity history goes to `/api/solana/activity`: the server calls Figment `GET /solana/activities` and `GET /solana/stakes` first, then fills gaps from Solana RPC (`SOLANA_RPC_URL` or public cluster). The widget never accepts API keys or private RPC URLs.
 
 ## Build
 
@@ -54,6 +54,7 @@ See `demoWidget/api` for a sample BFF that adds `FIGMENT_API_KEY` / `SOLANA_RPC_
 | `cluster` | `devnet` | `devnet` / `mainnet-beta` / `testnet` |
 | `voteAccount` | Figment devnet default | Validator vote account |
 | `apiBaseUrl` | `/api/figment` | Host Figment BFF base URL |
+| `activityApiUrl` | derived from `apiBaseUrl` | Host Activity BFF URL (`/api/solana/activity`) |
 | `showHeader` | `true` | Show header above the card |
 
 ## Pack (tarball)

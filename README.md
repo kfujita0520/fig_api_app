@@ -16,11 +16,6 @@ The components in this folder can be packaged as a **tarball** (`.tgz`) and dist
 
 Vite host that embeds `@fig/stake-widget` with a same-origin BFF under `api/` (`FIGMENT_API_KEY`, optional `SOLANA_RPC_URL`). Preferred demo for key-hiding mode.
 
-### `demo/`
-
-Demonstrates how to consume the packaged UI components.
-
-This application installs the **tarball package** generated from `widget` and shows how it can be integrated into an external application, simulating the real-world consumption workflow.
 
 ### `figapp-react/`
 
