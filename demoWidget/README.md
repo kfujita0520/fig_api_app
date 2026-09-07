@@ -63,8 +63,8 @@ With **Root = `demoWidget`**:
 
 3. **Environment Variables**
    - `FIGMENT_API_KEY` → **Secret**
-   - `SOLANA_RPC_URL` → **Secret** (optional; Activity history; falls back to public cluster RPC)
-   - `VITE_SOLANA_CLUSTER` → `devnet` (optional)
+   - `SOLANA_RPC_URL` → **Secret** (optional; Activity gap-fill only; falls back to public cluster RPC)
+   - `VITE_SOLANA_CLUSTER` → `devnet` (optional). Wallet `Connection` uses `clusterApiUrl` (e.g. `https://api.devnet.solana.com`)
    - Do **not** set `VITE_FIGMENT_API_KEY` or `VITE_SOLANA_RPC_URL`
    - `VITE_FIGMENT_API_BASE` optional; default in code is `/api/figment`
 

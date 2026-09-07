@@ -7,7 +7,6 @@ import './index.css';
 
 function App() {
   const cluster = import.meta.env.VITE_SOLANA_CLUSTER || 'devnet';
-  const rpcUrl = import.meta.env.VITE_SOLANA_RPC_URL?.trim() || undefined;
   const voteAccount = import.meta.env.VITE_FIGMENT_VOTE_ACCOUNT || undefined;
   // Same-origin BFF (Vite proxies locally; Vercel serves api/index.js).
   const apiBaseUrl = import.meta.env.VITE_FIGMENT_API_BASE || '/api/figment';
@@ -20,10 +19,10 @@ function App() {
   return (
     <div className="demoapp">
       <header className="demoapp__header">
-        <p className="demoapp__eyebrow">Stake Widget Demo App 2 (BFF)</p>
+        <p className="demoapp__eyebrow">Stake Widget Demo App (BFF)</p>
       </header>
 
-      <FigmentStakeProviders cluster={cluster} endpoint={rpcUrl} wallets={wallets}>
+      <FigmentStakeProviders cluster={cluster} wallets={wallets}>
         <FigmentStakeWidget
           cluster={cluster}
           voteAccount={voteAccount}
