@@ -1,57 +1,66 @@
 # standAppDemo
 
-Standalone React app for Figment Solana staking API testing.
+Self-contained staking sample: **UI source is in this folder**, plus a same-origin BFF.
+It does **not** depend on `@fig/stake-widget`. Use this when you want an app you can copy and run without the widget package.
 
-React staking widget for Solana. Connect a wallet, stake SOL via the [Figment Solana Stake API](https://docs.figment.io/reference/overview-1), and manage positions. The app uses Figment for stake/undelegate/withdraw and broadcast; activity history is built from Solana RPC so it works from any device.
+For the packaged widget, see `../widget` and `../widgetDemo`.
 
-## Features
+```text
+Browser
+  →  /api/figment/solana/...     (FIGMENT_API_KEY on server)
+  →  /api/solana/activity        (Figment activities + stakes first;
+                                  SOLANA_RPC_URL only to fill gaps)
 
-- **Stake tab** – Enter SOL amount (min 0.0025 SOL), optional “Max” (balance minus gas reserve). Creates a stake transaction via Figment; wallet signs and the transaction is broadcast via Figment. Shows validator (Figment), gross rewards rate, fee, and activation time.
-- **Rewards tab** – Lists stake accounts (from Figment `GET /solana/stakes`) with active/inactive balance and status. **Undelegate** (with downward arrow): visible when status is not Inactive; enabled only when status is Active. **Withdrawal** (with downward arrow): visible when there is inactive balance and status is not Activating; withdraws full inactive balance to the connected wallet.
-- **Activity tab** – Stake and unstake history from **Solana RPC** (`getSignaturesForAddress` + `getTransactions`). Filters Stake Program instructions (Delegate, Withdraw, Deactivate), shows date, type, amount, status, and an Explorer link. When devnet history has been pruned, unmatched Figment stakes are shown as inferred Stake/Unstake rows with a blank date and no transaction link.
-- **Wallet** – Connect via Solana wallet adapter; header shows truncated address; click to open modal with network, balance, and Disconnect.
+src/stake-widget/               (inlined UI; not an npm package)
+```
 
-## Environment
+Keys never use a `VITE_` prefix. Wallet `Connection` uses public `clusterApiUrl` (e.g. `https://api.devnet.solana.com`).
 
-Copy `.env.example` to `.env` and set:
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `VITE_FIGMENT_API_KEY` | Yes | Figment API key (stake, broadcast, undelegate, withdraw, stakes). |
-| `VITE_SOLANA_CLUSTER` | No | `devnet`, `mainnet-beta`, or `testnet`. Default: `devnet`. |
-| `VITE_SOLANA_RPC_URL` | No | Full-history Solana RPC URL for reliable Activity history. Falls back to the public cluster RPC. |
-| `VITE_FIGMENT_VOTE_ACCOUNT` | No | Validator vote account; if unset, devnet uses Figment default. |
-
-Do not commit `.env` or real API keys.
-
-## Run
+## Local setup
 
 ```bash
 cd standAppDemo
+cp .env.example .env   # set FIGMENT_API_KEY (+ optional SOLANA_RPC_URL)
 npm install
+
+# terminal 1 — BFF (port 3001)
+npm run dev:api
+
+# terminal 2 — Vite (port 5173, proxies /api/* → :3001)
 npm run dev
 ```
 
 Open http://localhost:5173
 
-## Build
+## Scripts
 
-```bash
-npm run build
-npm run preview   # optional: preview production build
-```
+| Command | Description |
+|---------|-------------|
+| `npm run dev:api` | Express BFF on port 3001 |
+| `npm run dev` | Vite on 5173 with `/api/figment` + `/api/solana` proxy |
+| `npm run build` | Production build of this app only |
 
-## Project structure
+## Layout
 
 | Path | Description |
 |------|-------------|
-| `src/App.jsx` | Main app: tabs (Stake, Rewards, Activity), wallet connect/modal, panels and handlers. |
-| `src/App.css` | Styles for layout, tabs, stake form, reward cards, activity list, buttons, modal. |
-| `src/figmentStake.js` | Figment API client: `createStakeTransaction`, `broadcastSignedTransaction`, `createUndelegateTransaction`, `createWithdrawTransaction`, `getStakes`, `clusterToNetwork`. |
-| `src/stakeActivity.js` | Activity from Solana RPC: `fetchStakeActivity` (signatures + transaction parsing), `mapActivityToUI` (optional Figment stakes enrichment). |
-| `public/favicon.png` | Favicon. |
+| `src/main.jsx` | Host: wallet adapters + `FigmentStakeWidget` |
+| `src/stake-widget/` | Inlined UI (from `widget/packages/stake-widget/src`) |
+| `api/` | BFF: Figment proxy + Activity aggregation |
 
-## APIs used
+## Vercel (single project)
 
-- **Figment** – [Stake](https://docs.figment.io/reference/solana-stake), [Broadcast](https://docs.figment.io/reference/solana-broadcast), [Stakes](https://docs.figment.io/reference/solana-stakes), [Undelegate](https://docs.figment.io/reference/solana-undelegate), [Withdraw](https://docs.figment.io/reference/solana-withdraw). In dev, requests go through the Vite proxy (`/figment-api`); in production, direct to `https://api.figment.io`.
-- **Solana RPC** – `getSignaturesForAddress`, batched `getTransactions` (with legacy and v0 message support) to build activity history; wallet balance via `connection.getBalance`.
+1. **Root Directory** = `standAppDemo`
+2. **Install:** `npm install --include=dev`
+3. **Build:** `npx vite build`
+4. **Output:** `dist`
+5. **Environment**
+   - `FIGMENT_API_KEY` → **Secret**
+   - `SOLANA_RPC_URL` → **Secret** (optional; Activity gap-fill)
+   - `VITE_SOLANA_CLUSTER` → `devnet` (optional)
+
+`vercel.json` rewrites `/api/figment/*` and `/api/solana/*` to the Express entry at `/api`.
+
+## Security
+
+- Never commit `.env` or real keys.

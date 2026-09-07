@@ -1,30 +1,24 @@
 /**
- * Fetch stake/unstake activity history from Solana RPC.
- * Uses getSignaturesForAddress + getTransaction, filters Stake Program instructions,
- * and maps to activity items (date, type, amount, status, tx hash).
- * @see https://solana.com/docs/rpc/json-structures
+ * Shared Activity mapping: Figment activities / stakes + optional parsed RPC txs.
+ * Kept next to the BFF so Vercel does not depend on the widget package source.
  */
-
-import { PublicKey } from '@solana/web3.js';
 
 const STAKE_PROGRAM_ID = 'Stake11111111111111111111111111111111111111';
 
-/** Stake instruction discriminators (first byte of instruction data) */
 const STAKE_IX = {
   DELEGATE: 2,
   WITHDRAW: 4,
   DEACTIVATE: 5,
 };
 
-const ACTIVITY_SIGNATURE_LIMIT = 30;
-const ACTIVITY_TRANSACTION_LIMIT = 100;
-const TRANSACTION_BATCH_SIZE = 25;
 const LAMPORTS_PER_SOL = 1e9;
 
-/**
- * Decode base58 to Uint8Array (minimal decoder; no extra dependency if possible).
- * Uses TextEncoder/ArrayBuffer for base58 alphabet.
- */
+const FIGMENT_TYPE_MAP = {
+  delegation: 'stake',
+  undelegation: 'unstake',
+  withdrawal: 'withdraw',
+};
+
 function base58Decode(str) {
   const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
   const bytes = [];
@@ -45,7 +39,6 @@ function base58Decode(str) {
   return new Uint8Array(bytes.reverse());
 }
 
-/** Normalize account keys returned by legacy, v0, or parsed transactions. */
 function toAccountKeyString(key) {
   if (key == null) return null;
   if (typeof key === 'string') return key;
@@ -54,12 +47,6 @@ function toAccountKeyString(key) {
   return String(key);
 }
 
-/**
- * Get full list of account keys for a transaction (static + loaded from lookup tables).
- * Legacy messages expose accountKeys; v0 messages expose staticAccountKeys.
- * @param {{ accountKeys?: unknown[], staticAccountKeys?: unknown[] }} message
- * @param {{ loadedAddresses?: { writable: string[], readonly: string[] } }} [loadedFrom]
- */
 function getFullAccountKeys(message, loadedFrom) {
   const staticKeys = message?.staticAccountKeys ?? message?.accountKeys ?? [];
   const loaded = loadedFrom?.loadedAddresses;
@@ -74,7 +61,6 @@ function getFullAccountKeys(message, loadedFrom) {
   ];
 }
 
-/** Return instruction data bytes for legacy (base58) and v0 (Uint8Array) messages. */
 function getInstructionData(data) {
   if (typeof data === 'string') return base58Decode(data);
   if (data instanceof Uint8Array) return data;
@@ -85,12 +71,52 @@ function getInstructionData(data) {
   return null;
 }
 
+function statusFromFigmentActivity(activity, type) {
+  const life = (activity.status || '').toLowerCase();
+  if (life === 'failed') return 'Failed';
+  if (type === 'stake') return life === 'complete' ? 'Active' : 'Activating';
+  if (type === 'unstake') return life === 'complete' ? 'Inactive' : 'Exiting';
+  return 'Withdrawn';
+}
+
 /**
- * Process a single transaction and extract stake-related activity entries.
- * @param {{ signature: string, blockTime?: number, transaction?: object, meta?: object, loadedAddresses?: object }} txResponse - full getTransaction response
- * @returns {Array<{ type: 'stake'|'unstake', amountSol: number, blockTime?: number, transactionHash: string, stakeAccount?: string, status?: string }>}
+ * Map Figment GET /solana/activities rows to the same entry shape as RPC parsing.
  */
-function parseTransactionActivity(txResponse) {
+export function figmentActivitiesToEntries(activities, stakeAuthority) {
+  return (activities ?? [])
+    .filter((activity) => {
+      if (
+        stakeAuthority
+        && activity.delegation_address
+        && activity.delegation_address !== stakeAuthority
+      ) {
+        return false;
+      }
+      const txStatus = activity.tx?.status;
+      if (txStatus === 'failed' || txStatus === 'expired') return false;
+      return Boolean(FIGMENT_TYPE_MAP[activity.type]);
+    })
+    .map((activity) => {
+      const type = FIGMENT_TYPE_MAP[activity.type];
+      const ts = activity.timestamp ? Date.parse(activity.timestamp) : NaN;
+      const details = activity.details && typeof activity.details === 'object'
+        ? activity.details
+        : {};
+      return {
+        type,
+        amountSol: Number(activity.amount) || 0,
+        blockTime: Number.isNaN(ts) ? null : Math.floor(ts / 1000),
+        transactionHash: activity.tx?.hash || undefined,
+        stakeAccount: details.stake_account || details.stakeAccount || null,
+        status: statusFromFigmentActivity(activity, type),
+      };
+    });
+}
+
+/**
+ * Process a single getTransaction response and extract stake-related activity entries.
+ */
+export function parseTransactionActivity(txResponse) {
   const { signature, blockTime, transaction: tx, meta, loadedAddresses } = txResponse ?? {};
   if (!tx?.message || !meta) return [];
 
@@ -118,7 +144,8 @@ function parseTransactionActivity(txResponse) {
 
     let type = null;
     if (discriminator === STAKE_IX.DELEGATE) type = 'stake';
-    else if (discriminator === STAKE_IX.WITHDRAW || discriminator === STAKE_IX.DEACTIVATE) type = 'unstake';
+    else if (discriminator === STAKE_IX.DEACTIVATE) type = 'unstake';
+    else if (discriminator === STAKE_IX.WITHDRAW) type = 'withdraw';
     if (!type) return;
 
     const accountIndices = ix.accountKeyIndexes ?? ix.accounts ?? [];
@@ -136,29 +163,25 @@ function parseTransactionActivity(txResponse) {
       const post = postBalances[stakeAccountIndex] ?? 0;
       const pre = preBalances[stakeAccountIndex] ?? 0;
       amountLamports = Math.max(0, post - pre);
-      // Delegating an already-created stake account does not change its balance.
       if (amountLamports === 0) amountLamports = post;
+    } else if (type === 'withdraw') {
+      const pre = preBalances[stakeAccountIndex] ?? 0;
+      const post = postBalances[stakeAccountIndex] ?? 0;
+      amountLamports = Math.max(0, pre - post);
     } else if (type === 'unstake') {
-      if (discriminator === STAKE_IX.WITHDRAW) {
-        const pre = preBalances[stakeAccountIndex] ?? 0;
-        const post = postBalances[stakeAccountIndex] ?? 0;
-        amountLamports = Math.max(0, pre - post);
-      } else {
-        const pre = preBalances[stakeAccountIndex] ?? 0;
-        amountLamports = pre;
-      }
+      const pre = preBalances[stakeAccountIndex] ?? 0;
+      amountLamports = pre;
     }
 
-    const amountSol = amountLamports / LAMPORTS_PER_SOL;
     entries.push({
       type,
-      amountSol,
+      amountSol: amountLamports / LAMPORTS_PER_SOL,
       blockTime: blockTime ?? null,
       transactionHash: signature,
       stakeAccount,
       status: type === 'stake'
         ? 'Activating'
-        : discriminator === STAKE_IX.WITHDRAW
+        : type === 'withdraw'
           ? 'Inactive'
           : 'Exiting',
     });
@@ -173,94 +196,7 @@ function parseTransactionActivity(txResponse) {
 }
 
 /**
- * Fetch stake activity for a wallet from Solana RPC.
- * @param {import('@solana/web3.js').Connection} connection
- * @param {import('@solana/web3.js').PublicKey} publicKey
- * @param {string[]} [stakeAccounts] stake accounts returned by Figment
- * @returns {Promise<Array<{ type: 'stake'|'unstake', amountSol: number, blockTime?: number, transactionHash: string, stakeAccount?: string, status?: string }>>}
- */
-export async function fetchStakeActivity(connection, publicKey, stakeAccounts = []) {
-  if (!connection || !publicKey) return [];
-
-  const publicKeyString = publicKey.toBase58();
-  const addresses = [publicKey];
-  const seenAddresses = new Set([publicKeyString]);
-  for (const address of stakeAccounts) {
-    if (!address || seenAddresses.has(address)) continue;
-    try {
-      addresses.push(new PublicKey(address));
-      seenAddresses.add(address);
-    } catch {
-      // Ignore malformed stake accounts instead of hiding wallet activity.
-    }
-  }
-
-  const signatureLists = await Promise.all(
-    addresses.map((address, index) =>
-      connection
-        .getSignaturesForAddress(address, { limit: ACTIVITY_SIGNATURE_LIMIT })
-        .catch((error) => {
-          if (index === 0) throw error;
-          return [];
-        })
-    )
-  );
-  const signaturesByHash = new Map();
-  for (const item of signatureLists.flat()) {
-    const existing = signaturesByHash.get(item.signature);
-    if (!existing || (item.blockTime ?? 0) > (existing.blockTime ?? 0)) {
-      signaturesByHash.set(item.signature, item);
-    }
-  }
-  const sigs = [...signaturesByHash.values()]
-    .sort((a, b) => (b.blockTime ?? 0) - (a.blockTime ?? 0));
-  if (!sigs.length) return [];
-
-  const opts = { maxSupportedTransactionVersion: 0 };
-  const allEntries = [];
-  const successfulSigs = sigs.filter((item) => !item.err);
-  const limitedSigs = successfulSigs.slice(0, ACTIVITY_TRANSACTION_LIMIT);
-  const signatures = limitedSigs.map((item) => item.signature);
-  if (!signatures.length) return [];
-
-  const transactions = [];
-  for (let start = 0; start < signatures.length; start += TRANSACTION_BATCH_SIZE) {
-    const signatureBatch = signatures.slice(start, start + TRANSACTION_BATCH_SIZE);
-    try {
-      transactions.push(...await connection.getTransactions(signatureBatch, opts));
-    } catch {
-      // Some RPC providers disable batch requests. Fall back to individual requests
-      // while keeping a failed/pruned transaction from hiding the rest of the list.
-      transactions.push(...await Promise.all(
-        signatureBatch.map((signature) =>
-          connection.getTransaction(signature, opts).catch(() => null)
-        )
-      ));
-    }
-  }
-
-  for (let i = 0; i < transactions.length; i++) {
-    const tx = transactions[i];
-    if (!tx?.transaction || tx.meta?.err) continue;
-    const entries = parseTransactionActivity({
-      signature: signatures[i],
-      blockTime: tx.blockTime ?? limitedSigs[i]?.blockTime ?? undefined,
-      transaction: tx.transaction,
-      meta: tx.meta,
-      loadedAddresses: tx.loadedAddresses,
-    });
-    allEntries.push(...entries);
-  }
-
-  allEntries.sort((a, b) => (b.blockTime ?? 0) - (a.blockTime ?? 0));
-  return allEntries;
-}
-
-/**
  * Map raw activity entries to UI shape and optionally enrich status from Figment stakes.
- * @param {Array<{ type: string, amountSol: number, blockTime?: number, transactionHash: string, stakeAccount?: string, status?: string }>} entries
- * @param {Array<{ stake_account: string, status?: string, balance?: string, active_balance?: string, inactive_balance?: string }>} [stakes]
- * @returns {Array<{ date: string, type: string, amount: string, status: string, note: string|null, statusDot: string, transactionHash?: string }>}
  */
 export function mapActivityToUI(entries, stakes = []) {
   const stakeByAccount = new Map((stakes ?? []).map((s) => [s.stake_account, s]));
@@ -275,10 +211,14 @@ export function mapActivityToUI(entries, stakes = []) {
       const activeBalance = parseFloat(stake.active_balance);
       const hasOnlyInactiveBalance = inactiveBalance > 0 && !(activeBalance > 0);
       const isStakeStatus = statusLower === 'active' || statusLower === 'activating';
-      const isUnstakeStatus = ['inactive', 'exiting', 'deactivating', 'withdrawn'].includes(statusLower);
-      const type = isUnstakeStatus || (!isStakeStatus && hasOnlyInactiveBalance)
-        ? 'unstake'
-        : 'stake';
+      const isUnstakeStatus = statusLower === 'exiting' || statusLower === 'deactivating';
+      const isWithdrawStatus = statusLower === 'inactive' || statusLower === 'withdrawn';
+      let type = 'stake';
+      if (isWithdrawStatus || (!isStakeStatus && !isUnstakeStatus && hasOnlyInactiveBalance)) {
+        type = 'withdraw';
+      } else if (isUnstakeStatus) {
+        type = 'unstake';
+      }
       const amount = parseFloat(stake.balance);
       return {
         type,
@@ -299,7 +239,7 @@ export function mapActivityToUI(entries, stakes = []) {
     let statusDot = 'green';
     if (statusLower === 'active') statusDot = 'green';
     else if (statusLower === 'activating' || statusLower === 'exiting' || statusLower === 'deactivating') statusDot = 'yellow';
-    else if (statusLower === 'inactive' || statusLower === 'withdrawn') statusDot = 'gray';
+    else if (statusLower === 'inactive' || statusLower === 'withdrawn' || statusLower === 'failed') statusDot = 'gray';
 
     let dateStr = '';
     if (e.blockTime != null) {
@@ -314,11 +254,16 @@ export function mapActivityToUI(entries, stakes = []) {
         ? '1 day until exit'
         : null;
 
+    const defaultStatus =
+      e.type === 'stake' ? 'Activating'
+      : e.type === 'withdraw' ? 'Inactive'
+      : 'Exiting';
+
     return {
       date: dateStr,
       type: e.type,
       amount: amountStr,
-      status: status || (e.type === 'stake' ? 'Activating' : 'Exiting'),
+      status: status || defaultStatus,
       note,
       statusDot,
       transactionHash: e.transactionHash,

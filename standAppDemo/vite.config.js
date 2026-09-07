@@ -4,11 +4,15 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   server: {
+    port: 5173,
     proxy: {
-      '/figment-api': {
-        target: 'https://api.figment.io',
+      '/api/figment': {
+        target: 'http://localhost:3001',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/figment-api/, ''),
+      },
+      '/api/solana': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
       },
     },
   },

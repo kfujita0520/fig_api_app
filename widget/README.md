@@ -13,6 +13,7 @@ Libraries for the embeddable Figment Solana staking widget.
 | Path | Description |
 |------|-------------|
 | `../widgetDemo` | Vite host that consumes the widget via `file:` (+ BFF under `api/`) |
+| `../standAppDemo` | Self-contained app with UI source inlined (no package) |
 
 ## Commands
 

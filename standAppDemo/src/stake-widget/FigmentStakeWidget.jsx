@@ -1,11 +1,24 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { VersionedTransaction } from '@solana/web3.js';
-import { createStakeTransaction, broadcastSignedTransaction, clusterToNetwork, getStakes, createUndelegateTransaction, createWithdrawTransaction } from './figmentStake';
-import { fetchStakeActivity, mapActivityToUI } from './stakeActivity';
+import {
+  createStakeTransaction,
+  broadcastSignedTransaction,
+  clusterToNetwork,
+  getStakes,
+  createUndelegateTransaction,
+  createWithdrawTransaction,
+  setFigmentClientConfig,
+} from './figmentStake.js';
+import { fetchStakeActivity, resolveActivityApiUrl } from './stakeActivity.js';
+import './styles.css';
 
 const TABS = ['stake', 'rewards', 'activity'];
+const MIN_STAKE_SOL = 0.0025;
+const STAKE_GAS_RESERVE_SOL = 0.01;
+const DEFAULT_VOTE_ACCOUNT_DEVNET = '21Jxcw74j5SvajRKE3PvNifu26CVorF7DF8HyanKNzZ3';
+const EXPLORER_URL = 'https://explorer.solana.com';
 
 function formatStakeBalance(value) {
   if (value == null || value === '') return '0 SOL';
@@ -36,10 +49,6 @@ function shortenAddress(address, chars = 4) {
   return `${address.slice(0, chars)}...${address.slice(-chars)}`;
 }
 
-const MIN_STAKE_SOL = 0.0025;
-const STAKE_GAS_RESERVE_SOL = 0.01;
-const DEFAULT_VOTE_ACCOUNT_DEVNET = '21Jxcw74j5SvajRKE3PvNifu26CVorF7DF8HyanKNzZ3';
-
 function hexToBytes(hex) {
   const h = hex.replace(/^0x/i, '');
   const arr = new Uint8Array(h.length / 2);
@@ -53,9 +62,19 @@ function bytesToHex(bytes) {
     .join('');
 }
 
-function StakePanel({ walletConnected, onConnectWallet, balanceSol, onBalanceRefetch }) {
-  const { publicKey, signTransaction } = useWallet();
+function networkLabel(cluster) {
+  return cluster === 'mainnet-beta' || cluster === 'mainnet' ? 'Mainnet' : cluster === 'testnet' ? 'Testnet' : 'Devnet';
+}
 
+function StakePanel({
+  walletConnected,
+  onConnectWallet,
+  balanceSol,
+  onBalanceRefetch,
+  cluster,
+  voteAccount,
+}) {
+  const { publicKey, signTransaction } = useWallet();
   const [stakeAmountSol, setStakeAmountSol] = useState('');
   const [isStaking, setIsStaking] = useState(false);
   const [error, setError] = useState('');
@@ -69,9 +88,8 @@ function StakePanel({ walletConnected, onConnectWallet, balanceSol, onBalanceRef
   );
 
   const balanceDisplay = balanceSol != null ? `${balanceSol.toFixed(2)} SOL` : '— SOL';
-  const cluster = import.meta.env.VITE_SOLANA_CLUSTER || 'devnet';
   const network = clusterToNetwork(cluster);
-  const voteAccount = import.meta.env.VITE_FIGMENT_VOTE_ACCOUNT || DEFAULT_VOTE_ACCOUNT_DEVNET;
+  const resolvedVoteAccount = voteAccount || DEFAULT_VOTE_ACCOUNT_DEVNET;
 
   const handleMax = () => {
     if (balanceSol != null && balanceSol > 0) {
@@ -101,7 +119,7 @@ function StakePanel({ walletConnected, onConnectWallet, balanceSol, onBalanceRef
     try {
       const { unsignedTxHex } = await createStakeTransaction({
         fundingAccount: publicKey.toBase58(),
-        voteAccount,
+        voteAccount: resolvedVoteAccount,
         amountSol: amount,
         network,
       });
@@ -124,8 +142,7 @@ function StakePanel({ walletConnected, onConnectWallet, balanceSol, onBalanceRef
       setStakeAmountSol('');
       if (typeof onBalanceRefetch === 'function') onBalanceRefetch();
     } catch (e) {
-      const message = e?.message || String(e);
-      setError(message);
+      setError(e?.message || String(e));
     } finally {
       setIsStaking(false);
     }
@@ -165,7 +182,7 @@ function StakePanel({ walletConnected, onConnectWallet, balanceSol, onBalanceRef
 
   const clusterForExplorer = cluster === 'mainnet-beta' ? 'mainnet-beta' : cluster || 'devnet';
   const explorerTxUrl = successTxHash
-    ? `https://explorer.solana.com/tx/${successTxHash}${clusterForExplorer === 'mainnet-beta' ? '' : '?cluster=' + clusterForExplorer}`
+    ? `${EXPLORER_URL}/tx/${successTxHash}${clusterForExplorer === 'mainnet-beta' ? '' : '?cluster=' + clusterForExplorer}`
     : '';
 
   return (
@@ -225,14 +242,13 @@ function StakePanel({ walletConnected, onConnectWallet, balanceSol, onBalanceRef
       >
         {isStaking ? 'Staking…' : 'Stake'}
       </button>
-      <div className="minimum">0.0025 SOL minimum</div>
+      <div className="minimum">1.1 SOL minimum</div>
     </div>
   );
 }
 
-function RewardsPanel({ onBalanceRefetch }) {
+function RewardsPanel({ onBalanceRefetch, cluster }) {
   const { publicKey, signTransaction } = useWallet();
-  const cluster = import.meta.env.VITE_SOLANA_CLUSTER || 'devnet';
   const network = clusterToNetwork(cluster);
 
   const [stakes, setStakes] = useState([]);
@@ -381,12 +397,17 @@ function RewardsPanel({ onBalanceRefetch }) {
             <DetailRow label="Rewards" value="N/A" />
           </div>
           {(s.status || '').toLowerCase() !== 'inactive' && (
-            <button
-              type="button"
-              className="undelegate-btn"
-              disabled={undelegatingStakeAccount != null || (s.status || '').toLowerCase() !== 'active'}
-              onClick={() => handleUndelegate(s)}
-            >
+              <button
+                type="button"
+                className="undelegate-btn"
+                disabled={undelegatingStakeAccount != null || (s.status || '').toLowerCase() !== 'active'}
+                title={
+                  (s.status || '').toLowerCase() === 'active'
+                    ? 'Undelegate this stake'
+                    : 'Available when stake status is Active'
+                }
+                onClick={() => handleUndelegate(s)}
+              >
               {undelegatingStakeAccount === s.stake_account ? (
                 'Signing…'
               ) : (
@@ -432,29 +453,37 @@ function RewardsPanel({ onBalanceRefetch }) {
   );
 }
 
-function ActivityPanel({ connection, publicKey, isActive, refetchKey, cluster }) {
+function ActivityPanel({ activityApiUrl, publicKey, isActive, refetchKey, cluster }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const cacheRef = useRef({ key: '', items: [] });
 
   useEffect(() => {
-    if (!isActive || !connection || !publicKey) {
+    if (!isActive) return;
+    if (!publicKey) {
       setItems([]);
+      cacheRef.current = { key: '', items: [] };
+      return;
+    }
+    const key = `${publicKey.toBase58()}:${cluster || 'devnet'}:${refetchKey}`;
+    if (cacheRef.current.key === key) {
+      setItems(cacheRef.current.items);
+      setLoading(false);
       return;
     }
     let cancelled = false;
     setLoading(true);
     setError('');
-    const network = clusterToNetwork(cluster || 'devnet');
-    getStakes({ network, stakeAuthority: publicKey.toBase58() })
-      .catch(() => [])
-      .then(async (stakes) => {
-        const stakeAccounts = stakes.map((stake) => stake.stake_account).filter(Boolean);
-        const entries = await fetchStakeActivity(connection, publicKey, stakeAccounts);
-        return { entries, stakes };
-      })
-      .then(({ entries, stakes }) => {
-        if (!cancelled) setItems(mapActivityToUI(entries, stakes));
+    fetchStakeActivity({
+      activityApiUrl,
+      stakeAuthority: publicKey.toBase58(),
+      cluster,
+    })
+      .then((rows) => {
+        if (cancelled) return;
+        cacheRef.current = { key, items: rows };
+        setItems(rows);
       })
       .catch((e) => {
         if (!cancelled) {
@@ -466,15 +495,14 @@ function ActivityPanel({ connection, publicKey, isActive, refetchKey, cluster })
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [connection, publicKey, isActive, refetchKey, cluster]);
+  }, [activityApiUrl, publicKey, isActive, refetchKey, cluster]);
 
-  const explorerBase = 'https://explorer.solana.com';
   const clusterParam = cluster === 'mainnet-beta' ? '' : `?cluster=${cluster || 'devnet'}`;
 
   if (!publicKey) {
     return (
       <div className="activity-list">
-        <div className="rewards-empty">Connect your wallet to see stake and unstake activity.</div>
+        <div className="rewards-empty">Connect your wallet to see stake, unstake, and withdraw activity.</div>
       </div>
     );
   }
@@ -495,7 +523,7 @@ function ActivityPanel({ connection, publicKey, isActive, refetchKey, cluster })
   if (items.length === 0) {
     return (
       <div className="activity-list">
-        <div className="rewards-empty">No stake or unstake activity yet.</div>
+        <div className="rewards-empty">No stake, unstake, or withdraw activity yet.</div>
       </div>
     );
   }
@@ -506,7 +534,9 @@ function ActivityPanel({ connection, publicKey, isActive, refetchKey, cluster })
           <div className="activity-left">
             <div className="activity-meta">
               <span className="activity-date">{item.date}</span>
-              <span className={`activity-badge ${item.type}`}>{item.type === 'stake' ? 'Stake' : 'Unstake'}</span>
+              <span className={`activity-badge ${item.type}`}>
+                {item.type === 'stake' ? 'Stake' : item.type === 'withdraw' ? 'Withdraw' : 'Unstake'}
+              </span>
             </div>
             <span className="activity-amount">{item.amount}</span>
           </div>
@@ -518,7 +548,7 @@ function ActivityPanel({ connection, publicKey, isActive, refetchKey, cluster })
             </div>
             {item.transactionHash && (
               <a
-                href={`${explorerBase}/tx/${item.transactionHash}${clusterParam}`}
+                href={`${EXPLORER_URL}/tx/${item.transactionHash}${clusterParam}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="activity-tx-link"
@@ -539,9 +569,7 @@ function ActivityPanel({ connection, publicKey, isActive, refetchKey, cluster })
   );
 }
 
-const EXPLORER_URL = 'https://explorer.solana.com';
-
-function WalletModal({ isOpen, onClose, publicKey, balanceSol, onDisconnect }) {
+function WalletModal({ isOpen, onClose, publicKey, balanceSol, onDisconnect, cluster }) {
   if (!isOpen) return null;
 
   const handleBackdropClick = (e) => {
@@ -556,15 +584,11 @@ function WalletModal({ isOpen, onClose, publicKey, balanceSol, onDisconnect }) {
   const addressStr = publicKey ? publicKey.toBase58() : '';
   const shortAddress = shortenAddress(addressStr);
   const explorerLink = addressStr
-    ? `${EXPLORER_URL}/address/${addressStr}${import.meta.env.VITE_SOLANA_CLUSTER === 'mainnet-beta' ? '' : '?cluster=' + (import.meta.env.VITE_SOLANA_CLUSTER || 'devnet')}`
+    ? `${EXPLORER_URL}/address/${addressStr}${cluster === 'mainnet-beta' ? '' : '?cluster=' + (cluster || 'devnet')}`
     : '#';
 
   return (
-    <div
-      className="modal-backdrop is-open"
-      aria-hidden="false"
-      onClick={handleBackdropClick}
-    >
+    <div className="modal-backdrop is-open" aria-hidden="false" onClick={handleBackdropClick}>
       <div
         className="modal-wallet"
         role="dialog"
@@ -590,7 +614,7 @@ function WalletModal({ isOpen, onClose, publicKey, balanceSol, onDisconnect }) {
           </a>
         </div>
         <div className="modal-wallet-details details">
-          <DetailRow label="Network" value={import.meta.env.VITE_SOLANA_CLUSTER === 'mainnet-beta' ? 'Mainnet' : 'Devnet'} />
+          <DetailRow label="Network" value={networkLabel(cluster)} />
           <DetailRow label="Available Balance" value={balanceSol != null ? `${balanceSol.toFixed(2)} SOL` : '—'} />
         </div>
         <button type="button" className="modal-disconnect" onClick={handleDisconnect}>
@@ -601,7 +625,28 @@ function WalletModal({ isOpen, onClose, publicKey, balanceSol, onDisconnect }) {
   );
 }
 
-export default function App() {
+/**
+ * Embeddable Figment Solana staking widget.
+ *
+ * @param {{
+ *   cluster?: string,
+ *   voteAccount?: string,
+ *   apiBaseUrl?: string,
+ *   activityApiUrl?: string,
+ *   showHeader?: boolean,
+ * }} props
+ */
+export function FigmentStakeWidget({
+  cluster = 'devnet',
+  voteAccount,
+  apiBaseUrl = '/api/figment',
+  activityApiUrl,
+  showHeader = true,
+}) {
+  const resolvedActivityApiUrl = useMemo(
+    () => resolveActivityApiUrl(apiBaseUrl, activityApiUrl),
+    [apiBaseUrl, activityApiUrl]
+  );
   const [activeTab, setActiveTab] = useState('stake');
   const [modalOpen, setModalOpen] = useState(false);
   const [balance, setBalance] = useState(null);
@@ -614,7 +659,10 @@ export default function App() {
 
   const walletConnected = !!connected;
   const shortAddress = publicKey ? shortenAddress(publicKey.toBase58()) : '';
-  const cluster = import.meta.env.VITE_SOLANA_CLUSTER || 'devnet';
+
+  useEffect(() => {
+    setFigmentClientConfig({ apiBaseUrl });
+  }, [apiBaseUrl]);
 
   useEffect(() => {
     if (!publicKey || !connection) return;
@@ -654,11 +702,13 @@ export default function App() {
   };
 
   return (
-    <>
-      <div className="header">
-        <h1>Figment Elements</h1>
-        <p>UI components for embeddable staking</p>
-      </div>
+    <div className="fig-stake-widget">
+      {showHeader && (
+        <div className="header">
+          <h1>Figment Elements</h1>
+          <p>UI components for embeddable staking</p>
+        </div>
+      )}
 
       <div className="widget">
         <div className="widget-top">
@@ -706,6 +756,8 @@ export default function App() {
               onConnectWallet={handleConnectWallet}
               balanceSol={balance}
               onBalanceRefetch={handleBalanceRefetch}
+              cluster={cluster}
+              voteAccount={voteAccount}
             />
           </div>
           <div
@@ -713,7 +765,7 @@ export default function App() {
             className={`tab-panel ${activeTab === 'rewards' ? 'active' : ''}`}
             role="tabpanel"
           >
-            <RewardsPanel onBalanceRefetch={handleBalanceRefetch} />
+            <RewardsPanel onBalanceRefetch={handleBalanceRefetch} cluster={cluster} />
           </div>
           <div
             id="panel-activity"
@@ -721,7 +773,7 @@ export default function App() {
             role="tabpanel"
           >
             <ActivityPanel
-              connection={connection}
+              activityApiUrl={resolvedActivityApiUrl}
               publicKey={publicKey}
               isActive={activeTab === 'activity'}
               refetchKey={activityRefetchKey}
@@ -737,7 +789,8 @@ export default function App() {
         publicKey={publicKey}
         balanceSol={balance}
         onDisconnect={handleModalDisconnect}
+        cluster={cluster}
       />
-    </>
+    </div>
   );
 }
