@@ -17,7 +17,7 @@ The components in this folder can be packaged as a **tarball** (`.tgz`) and dist
 Vite host that embeds `@fig/stake-widget` with a same-origin BFF under `api/` (`FIGMENT_API_KEY`, optional `SOLANA_RPC_URL`). Preferred demo for key-hiding mode.
 
 
-### `figapp-react/`
+### `standAppDemo/`
 
 A simple standalone web application for interacting with the API.
 
@@ -28,7 +28,7 @@ This project is useful for testing API endpoints independently of the UI compone
 - Use **`widgetDemo`** during development for the BFF-backed widget host.
 - Build and package **`widget/packages/stake-widget`** as a tarball when validating the distribution package.
 - Use **`demo`** to verify that the packaged tarball installs and behaves correctly in a consumer application.
-- Use **`figapp-react`** for standalone API testing and development.
+- Use **`standAppDemo`** for standalone API testing and development.
 
 ## Purpose
 

@@ -1,4 +1,6 @@
-# Figment Elements Staking – React App
+# standAppDemo
+
+Standalone React app for Figment Solana staking API testing.
 
 React staking widget for Solana. Connect a wallet, stake SOL via the [Figment Solana Stake API](https://docs.figment.io/reference/overview-1), and manage positions. The app uses Figment for stake/undelegate/withdraw and broadcast; activity history is built from Solana RPC so it works from any device.
 
@@ -25,6 +27,7 @@ Do not commit `.env` or real API keys.
 ## Run
 
 ```bash
+cd standAppDemo
 npm install
 npm run dev
 ```
