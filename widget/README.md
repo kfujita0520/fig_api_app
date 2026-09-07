@@ -12,7 +12,7 @@ Libraries for the embeddable Figment Solana staking widget.
 
 | Path | Description |
 |------|-------------|
-| `../demoWidget` | Vite host that consumes the widget via `file:` (+ BFF under `api/`) |
+| `../widgetDemo` | Vite host that consumes the widget via `file:` (+ BFF under `api/`) |
 
 ## Commands
 
@@ -21,5 +21,5 @@ Libraries for the embeddable Figment Solana staking widget.
 cd packages/stake-widget && npm install && npm run build
 
 # Or from the host app
-cd ../demoWidget && npm run build:widget && npm run dev
+cd ../widgetDemo && npm run build:widget && npm run dev
 ```

@@ -12,7 +12,7 @@ Contains the reusable UI components (e.g. `packages/stake-widget`).
 
 The components in this folder can be packaged as a **tarball** (`.tgz`) and distributed for use in other applications. This is the package that should be published or shared when integrating the UI into another project.
 
-### `demoWidget/`
+### `widgetDemo/`
 
 Vite host that embeds `@fig/stake-widget` with a same-origin BFF under `api/` (`FIGMENT_API_KEY`, optional `SOLANA_RPC_URL`). Preferred demo for key-hiding mode.
 
@@ -25,7 +25,7 @@ This project is useful for testing API endpoints independently of the UI compone
 
 ## Recommended Workflow
 
-- Use **`demoWidget`** during development for the BFF-backed widget host.
+- Use **`widgetDemo`** during development for the BFF-backed widget host.
 - Build and package **`widget/packages/stake-widget`** as a tarball when validating the distribution package.
 - Use **`demo`** to verify that the packaged tarball installs and behaves correctly in a consumer application.
 - Use **`figapp-react`** for standalone API testing and development.

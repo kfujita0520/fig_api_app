@@ -15,7 +15,7 @@ npm run build
 Or from the host app:
 
 ```bash
-cd demoWidget
+cd widgetDemo
 npm run build:widget
 ```
 
@@ -45,7 +45,7 @@ import '@fig/stake-widget/styles.css';
 </FigmentStakeProviders>
 ```
 
-See `demoWidget/api` for a sample BFF that adds `FIGMENT_API_KEY` / `SOLANA_RPC_URL` server-side.
+See `widgetDemo/api` for a sample BFF that adds `FIGMENT_API_KEY` / `SOLANA_RPC_URL` server-side.
 
 ### Props
 
@@ -61,5 +61,5 @@ See `demoWidget/api` for a sample BFF that adds `FIGMENT_API_KEY` / `SOLANA_RPC_
 
 ```bash
 npm run pack
-# or: cd demoWidget && npm run pack:widget
+# or: cd widgetDemo && npm run pack:widget
 ```

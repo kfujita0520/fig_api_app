@@ -1,4 +1,4 @@
-# demoWidget
+# widgetDemo
 
 Host app for `@fig/stake-widget` with an embedded **Figment BFF** under `api/`.
 One Vercel project serves the static app and the serverless API (same origin).
@@ -14,7 +14,7 @@ Browser
 
 ```bash
 cd widget/packages/stake-widget && npm install && cd -
-cd demoWidget
+cd widgetDemo
 cp .env.example .env   # set FIGMENT_API_KEY (+ optional SOLANA_RPC_URL)
 npm install
 npm run build:widget
@@ -37,24 +37,24 @@ npm run dev            # http://localhost:5175
 
 ## Vercel (single project)
 
-1. **Root Directory** = `demoWidget`
+1. **Root Directory** = `widgetDemo`
 2. **Install Command** (include widget + this app):
 
 ```bash
 npm install --include=dev && npm install --prefix ../widget/packages/stake-widget --include=dev
 ```
 
-If Root is `demoWidget`, the sibling widget path is `../widget/packages/stake-widget`.
+If Root is `widgetDemo`, the sibling widget path is `../widget/packages/stake-widget`.
 
 Alternatively set Root to `./` (repo root) and use:
 
 | Setting | Value |
 |---------|--------|
-| Install | `npm install --prefix demoWidget --include=dev && npm install --prefix widget/packages/stake-widget --include=dev` |
-| Build | `cd widget/packages/stake-widget && ./node_modules/.bin/vite build && cd ../../.. && cd demoWidget && ./node_modules/.bin/vite build` |
-| Output | `demoWidget/dist` |
+| Install | `npm install --prefix widgetDemo --include=dev && npm install --prefix widget/packages/stake-widget --include=dev` |
+| Build | `cd widget/packages/stake-widget && ./node_modules/.bin/vite build && cd ../../.. && cd widgetDemo && ./node_modules/.bin/vite build` |
+| Output | `widgetDemo/dist` |
 
-With **Root = `demoWidget`**:
+With **Root = `widgetDemo`**:
 
 | Setting | Value |
 |---------|--------|
