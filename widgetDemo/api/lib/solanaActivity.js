@@ -5,6 +5,8 @@
  * 2. GET /solana/stakes (on-chain status / inferred rows)
  * 3. If Figment returned no history, fill from wallet signatures only
  *    (getSignaturesForAddress + limited concurrent getTransaction)
+ *
+ * Org activities and the assembled wallet result are cached ~20s (see activityCache.js).
  */
 
 import {
@@ -12,6 +14,7 @@ import {
   mapActivityToUI,
   parseTransactionActivity,
 } from './stakeActivityCore.js';
+import { withCache } from './activityCache.js';
 
 const FIGMENT_API_BASE = 'https://api.figment.io';
 const ACTIVITY_PAGE_SIZE = 100;
@@ -52,19 +55,21 @@ async function figmentGet(apiKey, path, query) {
   return body;
 }
 
-async function fetchFigmentActivities(apiKey, network) {
-  const collected = [];
-  let hasNext = true;
-  for (let page = 1; page <= ACTIVITY_MAX_PAGES && hasNext; page += 1) {
-    const body = await figmentGet(apiKey, '/solana/activities', {
-      network,
-      'page[number]': String(page),
-      'page[size]': String(ACTIVITY_PAGE_SIZE),
-    });
-    collected.push(...unwrapList(body));
-    hasNext = Boolean(body?.meta?.pagination?.has_next);
-  }
-  return collected;
+async function fetchFigmentActivities(apiKey, network, { skipCache = false } = {}) {
+  return withCache(`figment-activities:${network}`, async () => {
+    const collected = [];
+    let hasNext = true;
+    for (let page = 1; page <= ACTIVITY_MAX_PAGES && hasNext; page += 1) {
+      const body = await figmentGet(apiKey, '/solana/activities', {
+        network,
+        'page[number]': String(page),
+        'page[size]': String(ACTIVITY_PAGE_SIZE),
+      });
+      collected.push(...unwrapList(body));
+      hasNext = Boolean(body?.meta?.pagination?.has_next);
+    }
+    return collected;
+  }, { skip: skipCache });
 }
 
 async function fetchFigmentStakes(apiKey, network, stakeAuthority) {
@@ -160,12 +165,9 @@ function mergeEntries(figmentEntries, rpcEntries) {
   return [...byKey.values()].sort((a, b) => (b.blockTime ?? 0) - (a.blockTime ?? 0));
 }
 
-/**
- * @param {{ apiKey: string, network: string, stakeAuthority: string, rpcUrl?: string }} params
- */
-export async function buildStakeActivity({ apiKey, network, stakeAuthority, rpcUrl }) {
+async function buildStakeActivityUncached({ apiKey, network, stakeAuthority, rpcUrl, skipCache }) {
   const [activitiesResult, stakesResult] = await Promise.allSettled([
-    fetchFigmentActivities(apiKey, network),
+    fetchFigmentActivities(apiKey, network, { skipCache }),
     fetchFigmentStakes(apiKey, network, stakeAuthority),
   ]);
 
@@ -209,4 +211,15 @@ export async function buildStakeActivity({ apiKey, network, stakeAuthority, rpcU
       rpcCount: rpcEntries.length,
     },
   };
+}
+
+/**
+ * @param {{ apiKey: string, network: string, stakeAuthority: string, rpcUrl?: string, skipCache?: boolean }} params
+ */
+export async function buildStakeActivity({ apiKey, network, stakeAuthority, rpcUrl, skipCache = false }) {
+  return withCache(
+    `stake-activity:${network}:${stakeAuthority}`,
+    () => buildStakeActivityUncached({ apiKey, network, stakeAuthority, rpcUrl, skipCache }),
+    { skip: skipCache }
+  );
 }
