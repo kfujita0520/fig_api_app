@@ -353,7 +353,7 @@ function RewardsPanel({ onBalanceRefetch, cluster }) {
   const toSol = (v) => (v >= 1e8 ? (v / 1e9).toFixed(2) : v.toFixed(2));
   const displayTotal = toSol(totalSol);
   const displayActive = toSol(totalActive);
-  const displayActivating = toSol(totalInactive);
+  const displayInactive = toSol(totalInactive);
 
   return (
     <div className="rewards-panel">
@@ -361,7 +361,7 @@ function RewardsPanel({ onBalanceRefetch, cluster }) {
         <div className="rewards-stake-total">{displayTotal} <span className="unit">SOL</span></div>
         <div className="rewards-pills">
           <span className="rewards-pill active">{displayActive} Active</span>
-          <span className="rewards-pill activating">{displayActivating} Activating</span>
+          <span className="rewards-pill inactive">{displayInactive} Inactive</span>
         </div>
       </div>
       <div className="rewards-rewards-section">

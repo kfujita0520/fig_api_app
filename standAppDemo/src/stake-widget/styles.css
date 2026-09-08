@@ -513,7 +513,7 @@
   color: #065f46;
 }
 
-.fig-stake-widget .rewards-pill.activating {
+.fig-stake-widget .rewards-pill.inactive {
   background: #fef3c7;
   color: #92400e;
 }
