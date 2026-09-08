@@ -196,10 +196,8 @@ export async function buildStakeActivity({ apiKey, network, stakeAuthority, rpcU
   }
 
   const entries = mergeEntries(figmentEntries, rpcEntries);
-  // Avoid duplicating Figment timeline rows with inferred stake cards when
-  // activities have no stake_account to join on.
-  const useStakeFallback = entries.length === 0 || entries.some((entry) => entry.stakeAccount);
-  const data = mapActivityToUI(entries, useStakeFallback ? stakes : []);
+  const includeFallback = entries.length === 0 || entries.some((entry) => entry.stakeAccount);
+  const data = mapActivityToUI(entries, stakes, { includeFallback });
 
   return {
     data,
