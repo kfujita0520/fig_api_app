@@ -158,12 +158,16 @@ app.get('/api/solana/activity', async (req, res) => {
     return res.status(400).json({ error: { message: 'stake_authority is required' } });
   }
 
+  const freshRaw = String(req.query.fresh || '').toLowerCase();
+  const skipCache = freshRaw === '1' || freshRaw === 'true';
+
   try {
     const result = await buildStakeActivity({
       apiKey,
       network,
       stakeAuthority,
       rpcUrl: process.env.SOLANA_RPC_URL,
+      skipCache,
     });
     return res.status(200).json(result);
   } catch (err) {

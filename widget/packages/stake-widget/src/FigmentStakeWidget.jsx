@@ -11,7 +11,12 @@ import {
   createWithdrawTransaction,
   setFigmentClientConfig,
 } from './figmentStake.js';
-import { fetchStakeActivity, resolveActivityApiUrl } from './stakeActivity.js';
+import {
+  fetchStakeActivity,
+  peekStakeActivityCache,
+  prefetchStakeActivity,
+  resolveActivityApiUrl,
+} from './stakeActivity.js';
 import './styles.css';
 
 const TABS = ['stake', 'rewards', 'activity'];
@@ -353,7 +358,7 @@ function RewardsPanel({ onBalanceRefetch, cluster }) {
   const toSol = (v) => (v >= 1e8 ? (v / 1e9).toFixed(2) : v.toFixed(2));
   const displayTotal = toSol(totalSol);
   const displayActive = toSol(totalActive);
-  const displayActivating = toSol(totalInactive);
+  const displayInactive = toSol(totalInactive);
 
   return (
     <div className="rewards-panel">
@@ -361,7 +366,7 @@ function RewardsPanel({ onBalanceRefetch, cluster }) {
         <div className="rewards-stake-total">{displayTotal} <span className="unit">SOL</span></div>
         <div className="rewards-pills">
           <span className="rewards-pill active">{displayActive} Active</span>
-          <span className="rewards-pill activating">{displayActivating} Activating</span>
+          <span className="rewards-pill inactive">{displayInactive} Inactive</span>
         </div>
       </div>
       <div className="rewards-rewards-section">
@@ -457,32 +462,38 @@ function ActivityPanel({ activityApiUrl, publicKey, isActive, refetchKey, cluste
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const cacheRef = useRef({ key: '', items: [] });
+  const lastRefetchKeyRef = useRef(refetchKey);
 
   useEffect(() => {
-    if (!isActive) return;
     if (!publicKey) {
       setItems([]);
-      cacheRef.current = { key: '', items: [] };
+      lastRefetchKeyRef.current = refetchKey;
       return;
     }
-    const key = `${publicKey.toBase58()}:${cluster || 'devnet'}:${refetchKey}`;
-    if (cacheRef.current.key === key) {
-      setItems(cacheRef.current.items);
+    if (!isActive) {
+      lastRefetchKeyRef.current = refetchKey;
+      return;
+    }
+    const stakeAuthority = publicKey.toBase58();
+    const peeked = peekStakeActivityCache({ activityApiUrl, stakeAuthority, cluster });
+    if (peeked) {
+      setItems(peeked);
       setLoading(false);
-      return;
+    } else {
+      setLoading(true);
     }
+    const fresh = refetchKey > lastRefetchKeyRef.current;
+    lastRefetchKeyRef.current = refetchKey;
     let cancelled = false;
-    setLoading(true);
     setError('');
     fetchStakeActivity({
       activityApiUrl,
-      stakeAuthority: publicKey.toBase58(),
+      stakeAuthority,
       cluster,
+      fresh,
     })
       .then((rows) => {
         if (cancelled) return;
-        cacheRef.current = { key, items: rows };
         setItems(rows);
       })
       .catch((e) => {
@@ -652,6 +663,7 @@ export function FigmentStakeWidget({
   const [balance, setBalance] = useState(null);
   const [balanceRefetchKey, setBalanceRefetchKey] = useState(0);
   const [activityRefetchKey, setActivityRefetchKey] = useState(0);
+  const lastActivityRefetchKeyRef = useRef(0);
 
   const { publicKey, connected, disconnect } = useWallet();
   const { setVisible: setWalletModalVisible } = useWalletModal();
@@ -674,6 +686,18 @@ export function FigmentStakeWidget({
     });
     return () => { cancelled = true; };
   }, [publicKey, connection, balanceRefetchKey]);
+
+  useEffect(() => {
+    if (!publicKey || !resolvedActivityApiUrl) return;
+    const fresh = activityRefetchKey > lastActivityRefetchKeyRef.current;
+    lastActivityRefetchKeyRef.current = activityRefetchKey;
+    prefetchStakeActivity({
+      activityApiUrl: resolvedActivityApiUrl,
+      stakeAuthority: publicKey.toBase58(),
+      cluster,
+      fresh,
+    });
+  }, [publicKey, resolvedActivityApiUrl, cluster, activityRefetchKey]);
 
   const handleBalanceRefetch = () => {
     setBalanceRefetchKey((k) => k + 1);

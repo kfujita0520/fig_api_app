@@ -19,6 +19,26 @@ const FIGMENT_TYPE_MAP = {
   withdrawal: 'withdraw',
 };
 
+/** Solana warmup/cooldown is ~1 epoch. Figment activity-life `pending` often lags past this. */
+const SOLANA_EPOCH_MS = 2 * 24 * 60 * 60 * 1000;
+
+function amountClose(a, b) {
+  return Math.abs(Number(a) - Number(b)) < 1e-4;
+}
+
+function stakeBalanceSol(stake) {
+  const n = parseFloat(stake?.balance);
+  return Number.isNaN(n) ? 0 : n;
+}
+
+function figmentActivitySettled(activity) {
+  const completedAt = Date.parse(activity?.estimated_completed_at || '');
+  if (Number.isFinite(completedAt) && Date.now() >= completedAt) return true;
+  const ts = Date.parse(activity?.timestamp || '');
+  if (Number.isFinite(ts) && Date.now() - ts >= SOLANA_EPOCH_MS) return true;
+  return false;
+}
+
 function base58Decode(str) {
   const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
   const bytes = [];
@@ -74,8 +94,9 @@ function getInstructionData(data) {
 function statusFromFigmentActivity(activity, type) {
   const life = (activity.status || '').toLowerCase();
   if (life === 'failed') return 'Failed';
-  if (type === 'stake') return life === 'complete' ? 'Active' : 'Activating';
-  if (type === 'unstake') return life === 'complete' ? 'Inactive' : 'Exiting';
+  const settled = life === 'complete' || figmentActivitySettled(activity);
+  if (type === 'stake') return settled ? 'Active' : 'Activating';
+  if (type === 'unstake') return settled ? 'Inactive' : 'Exiting';
   return 'Withdrawn';
 }
 
@@ -196,40 +217,74 @@ export function parseTransactionActivity(txResponse) {
 }
 
 /**
- * Map raw activity entries to UI shape and optionally enrich status from Figment stakes.
+ * When Figment omits details.stake_account, still attach currently activating
+ * on-chain stakes to the newest unmatched stake rows so Rewards and Activity agree.
  */
-export function mapActivityToUI(entries, stakes = []) {
-  const stakeByAccount = new Map((stakes ?? []).map((s) => [s.stake_account, s]));
-  const representedStakeAccounts = new Set(
+function attachActivatingStakes(entries, stakes) {
+  const used = new Set(
     entries.map((entry) => entry.stakeAccount).filter(Boolean)
   );
-  const fallbackEntries = (stakes ?? [])
-    .filter((stake) => stake.stake_account && !representedStakeAccounts.has(stake.stake_account))
-    .map((stake) => {
-      const statusLower = (stake.status ?? '').toLowerCase();
-      const inactiveBalance = parseFloat(stake.inactive_balance);
-      const activeBalance = parseFloat(stake.active_balance);
-      const hasOnlyInactiveBalance = inactiveBalance > 0 && !(activeBalance > 0);
-      const isStakeStatus = statusLower === 'active' || statusLower === 'activating';
-      const isUnstakeStatus = statusLower === 'exiting' || statusLower === 'deactivating';
-      const isWithdrawStatus = statusLower === 'inactive' || statusLower === 'withdrawn';
-      let type = 'stake';
-      if (isWithdrawStatus || (!isStakeStatus && !isUnstakeStatus && hasOnlyInactiveBalance)) {
-        type = 'withdraw';
-      } else if (isUnstakeStatus) {
-        type = 'unstake';
-      }
-      const amount = parseFloat(stake.balance);
-      return {
-        type,
-        amountSol: Number.isNaN(amount) ? 0 : amount,
-        blockTime: null,
-        stakeAccount: stake.stake_account,
-        status: stake.status,
-      };
-    });
+  const unmatched = entries
+    .filter((entry) => entry.type === 'stake' && !entry.stakeAccount)
+    .sort((a, b) => (b.blockTime ?? 0) - (a.blockTime ?? 0));
+  for (const stake of stakes ?? []) {
+    const status = (stake.status || '').toLowerCase();
+    if (!stake.stake_account || used.has(stake.stake_account) || status !== 'activating') {
+      continue;
+    }
+    const match = unmatched.find(
+      (entry) => !entry.stakeAccount && amountClose(entry.amountSol, stakeBalanceSol(stake))
+    );
+    if (!match) continue;
+    match.stakeAccount = stake.stake_account;
+    used.add(stake.stake_account);
+  }
+}
 
-  return [...entries, ...fallbackEntries].map((e) => {
+/**
+ * Map raw activity entries to UI shape and optionally enrich status from Figment stakes.
+ * @param {object[]} entries
+ * @param {object[]} [stakes]
+ * @param {{ includeFallback?: boolean }} [options]
+ */
+export function mapActivityToUI(entries, stakes = [], options = {}) {
+  const includeFallback = options.includeFallback !== false;
+  const mappedEntries = (entries ?? []).map((entry) => ({ ...entry }));
+  attachActivatingStakes(mappedEntries, stakes);
+
+  const stakeByAccount = new Map((stakes ?? []).map((s) => [s.stake_account, s]));
+  const representedStakeAccounts = new Set(
+    mappedEntries.map((entry) => entry.stakeAccount).filter(Boolean)
+  );
+  const fallbackEntries = includeFallback
+    ? (stakes ?? [])
+      .filter((stake) => stake.stake_account && !representedStakeAccounts.has(stake.stake_account))
+      .map((stake) => {
+        const statusLower = (stake.status ?? '').toLowerCase();
+        const inactiveBalance = parseFloat(stake.inactive_balance);
+        const activeBalance = parseFloat(stake.active_balance);
+        const hasOnlyInactiveBalance = inactiveBalance > 0 && !(activeBalance > 0);
+        const isStakeStatus = statusLower === 'active' || statusLower === 'activating';
+        const isUnstakeStatus = statusLower === 'exiting' || statusLower === 'deactivating';
+        const isWithdrawStatus = statusLower === 'inactive' || statusLower === 'withdrawn';
+        let type = 'stake';
+        if (isWithdrawStatus || (!isStakeStatus && !isUnstakeStatus && hasOnlyInactiveBalance)) {
+          type = 'withdraw';
+        } else if (isUnstakeStatus) {
+          type = 'unstake';
+        }
+        const amount = parseFloat(stake.balance);
+        return {
+          type,
+          amountSol: Number.isNaN(amount) ? 0 : amount,
+          blockTime: null,
+          stakeAccount: stake.stake_account,
+          status: stake.status,
+        };
+      })
+    : [];
+
+  return [...mappedEntries, ...fallbackEntries].map((e) => {
     const stakeInfo = e.stakeAccount ? stakeByAccount.get(e.stakeAccount) : null;
     const rawStatus = (stakeInfo?.status ?? e.status ?? '').toString();
     const status = rawStatus
